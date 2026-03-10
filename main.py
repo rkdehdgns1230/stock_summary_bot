@@ -52,31 +52,49 @@ def get_fmkorea_info():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     try:
+        print(f"[에펨코리아] 목록 페이지 요청: {url}")
         res = requests.get(url, headers=headers)
+        print(f"[에펨코리아] 목록 응답 코드: {res.status_code}")
+        print(f"[에펨코리아] 목록 응답 헤더: {dict(res.headers)}")
+
+        if res.status_code != 200:
+            print(f"[에펨코리아] 비정상 응답 본문(앞 500자):\n{res.text[:500]}")
+            return f"커뮤니티 정보 수집 실패: HTTP {res.status_code}"
+
         soup = BeautifulSoup(res.text, 'html.parser')
         posts = soup.select('.fm_best_widget li')[:15]  # 상위 15개
+        print(f"[에펨코리아] 파싱된 게시글 수: {len(posts)}")
+
+        if not posts:
+            print(f"[에펨코리아] 게시글 파싱 실패 - 응답 본문(앞 1000자):\n{res.text[:1000]}")
 
         results = []
-        for post in posts:
+        for i, post in enumerate(posts):
             title_tag = post.select_one('h3.title a span.ellipsis-target')
             link_tag = post.select_one('h3.title a')
             if not title_tag or not link_tag:
+                print(f"[에펨코리아] 게시글 #{i+1} title/link 파싱 실패, 건너뜀")
                 continue
             title = title_tag.get_text(strip=True)
             link = link_tag['href']
             regdate_tag = post.select_one('span.regdate')
             regdate = regdate_tag.get_text(strip=True) if regdate_tag else ""
+            print(f"[에펨코리아] 게시글 #{i+1}: {title} ({link})")
 
             # 본문 수집을 위한 상세 페이지 접속
-            post_res = requests.get(f"https://www.fmkorea.com{link}", headers=headers)
+            post_url = f"https://www.fmkorea.com{link}"
+            post_res = requests.get(post_url, headers=headers)
+            print(f"[에펨코리아] 상세 페이지 응답 코드: {post_res.status_code} ({post_url})")
             post_soup = BeautifulSoup(post_res.text, 'html.parser')
             content_tag = post_soup.select_one('.xe_content') or post_soup.select_one('article')
             content = content_tag.get_text(strip=True)[:300] if content_tag else "(본문 없음)"
             results.append(f"[{regdate}] 제목: {title}\n본문요약: {content}")
             time.sleep(1)  # 차단 방지
 
+        print(f"[에펨코리아] 최종 수집된 게시글 수: {len(results)}")
         return "\n---\n".join(results) if results else "인기글 없음"
     except Exception as e:
+        print(f"[에펨코리아] 예외 발생: {type(e).__name__}: {e}")
         return f"커뮤니티 정보 수집 실패: {e}"
 
 def summarize_and_send():
