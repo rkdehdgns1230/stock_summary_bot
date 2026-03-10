@@ -33,7 +33,7 @@ def get_us_market():
 
 def get_kospi_futures():
     """코스피 200 야간 선물 수집 (인베스팅닷컴 우회)"""
-    url = "https://kr.investing.com/indices/kospi-200-futures"
+    url = "https://kr.investing.com/indices/korea-200-futures"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
         res = requests.get(url, headers=headers)
