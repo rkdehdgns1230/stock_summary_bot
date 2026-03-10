@@ -2,7 +2,7 @@ import os
 import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 import time
 
 # 1. 설정 (환경변수 사용)
@@ -10,7 +10,7 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
-genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 def get_us_market():
     """미국 증시 주요 지표 수집"""
@@ -102,8 +102,7 @@ def summarize_and_send():
     - 오늘 한국 증시의 상승/하락 가능성을 전망해줘.
     """
 
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     report = response.text
 
     # 텔레그램 전송
