@@ -2,4 +2,3 @@ yfinance
 requests
 beautifulsoup4
 google-genai
-cloudscraper

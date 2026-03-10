@@ -2,7 +2,6 @@ import os
 from datetime import datetime, timezone, timedelta
 import yfinance as yf
 import requests
-import cloudscraper
 from bs4 import BeautifulSoup
 from google import genai
 import time
@@ -53,55 +52,41 @@ def get_kospi_futures():
         print(f"[코스피200] 예외 발생: {type(e).__name__}: {e}")
         return "코스피200: 정보 가져오기 실패"
 
-def get_fmkorea_info():
-    """에펨코리아 주식게시판 인기글 및 본문 수집"""
-    url = "https://www.fmkorea.com/index.php?mid=stock&sort_index=pop&order_type=desc"
-    scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+def get_naver_finance_news():
+    """네이버 금융 증권 뉴스 수집"""
+    url = "https://finance.naver.com/news/news_list.naver?mode=LSS2D&section_id=101&section_id2=258"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
     try:
-        print(f"[에펨코리아] 목록 페이지 요청: {url}")
-        res = scraper.get(url)
-        print(f"[에펨코리아] 목록 응답 코드: {res.status_code}")
-        print(f"[에펨코리아] 목록 응답 헤더: {dict(res.headers)}")
+        print(f"[네이버금융] 뉴스 목록 요청: {url}")
+        res = requests.get(url, headers=headers)
+        res.encoding = 'euc-kr'
+        print(f"[네이버금융] 응답 코드: {res.status_code}")
 
         if res.status_code != 200:
-            print(f"[에펨코리아] 비정상 응답 본문(앞 500자):\n{res.text[:500]}")
-            return f"커뮤니티 정보 수집 실패: HTTP {res.status_code}"
+            print(f"[네이버금융] 비정상 응답 본문(앞 500자):\n{res.text[:500]}")
+            return f"뉴스 수집 실패: HTTP {res.status_code}"
 
         soup = BeautifulSoup(res.text, 'html.parser')
-        posts = soup.select('.fm_best_widget li')[:15]  # 상위 15개
-        print(f"[에펨코리아] 파싱된 게시글 수: {len(posts)}")
+        articles = soup.select('dd.articleSubject a')[:15]
+        print(f"[네이버금융] 파싱된 기사 수: {len(articles)}")
 
-        if not posts:
-            print(f"[에펨코리아] 게시글 파싱 실패 - 응답 본문(앞 1000자):\n{res.text[:1000]}")
+        if not articles:
+            print(f"[네이버금융] 기사 파싱 실패 - 응답 본문(앞 1000자):\n{res.text[:1000]}")
+            return "뉴스 수집 실패: 기사 파싱 실패"
 
         results = []
-        for i, post in enumerate(posts):
-            title_tag = post.select_one('h3.title a span.ellipsis-target')
-            link_tag = post.select_one('h3.title a')
-            if not title_tag or not link_tag:
-                print(f"[에펨코리아] 게시글 #{i+1} title/link 파싱 실패, 건너뜀")
-                continue
-            title = title_tag.get_text(strip=True)
-            link = link_tag['href']
-            regdate_tag = post.select_one('span.regdate')
-            regdate = regdate_tag.get_text(strip=True) if regdate_tag else ""
-            print(f"[에펨코리아] 게시글 #{i+1}: {title} ({link})")
+        for i, article in enumerate(articles):
+            title = article.get_text(strip=True)
+            print(f"[네이버금융] 기사 #{i+1}: {title}")
+            results.append(title)
 
-            # 본문 수집을 위한 상세 페이지 접속
-            post_url = f"https://www.fmkorea.com{link}"
-            post_res = scraper.get(post_url)
-            print(f"[에펨코리아] 상세 페이지 응답 코드: {post_res.status_code} ({post_url})")
-            post_soup = BeautifulSoup(post_res.text, 'html.parser')
-            content_tag = post_soup.select_one('.xe_content') or post_soup.select_one('article')
-            content = content_tag.get_text(strip=True)[:300] if content_tag else "(본문 없음)"
-            results.append(f"[{regdate}] 제목: {title}\n본문요약: {content}")
-            time.sleep(1)  # 차단 방지
-
-        print(f"[에펨코리아] 최종 수집된 게시글 수: {len(results)}")
-        return "\n---\n".join(results) if results else "인기글 없음"
+        print(f"[네이버금융] 최종 수집된 기사 수: {len(results)}")
+        return "\n".join(f"- {t}" for t in results)
     except Exception as e:
-        print(f"[에펨코리아] 예외 발생: {type(e).__name__}: {e}")
-        return f"커뮤니티 정보 수집 실패: {e}"
+        print(f"[네이버금융] 예외 발생: {type(e).__name__}: {e}")
+        return f"뉴스 수집 실패: {e}"
 
 def summarize_and_send():
     today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
@@ -112,8 +97,8 @@ def summarize_and_send():
     kospi_data = get_kospi_futures()
     print("[데이터 수집] 코스피200 야간선물:\n", kospi_data)
 
-    fm_data = get_fmkorea_info()
-    print("[데이터 수집] 에펨코리아 여론:\n", fm_data[:300], "...")
+    news_data = get_naver_finance_news()
+    print("[데이터 수집] 네이버 금융 뉴스:\n", news_data[:300], "...")
 
     # Gemini 프롬프트 구성
     prompt = f"""
@@ -125,12 +110,12 @@ def summarize_and_send():
     2. 코스피200 지수 (전일 종가 기준):
     {kospi_data}
     
-    3. 커뮤니티(에펨코리아) 여론:
-    {fm_data}
+    3. 국내 증권 주요 뉴스 (네이버 금융):
+    {news_data}
     
     요구사항:
     - 텔레그램으로 읽기 편하게 이모지를 섞어서 요약해줘.
-    - 커뮤니티 여론은 비속어를 정제하고 '개인 투자자들의 심리' 관점에서 분석해줘.
+    - 커뮤니티 여론 대신 국내 증권 뉴스 헤드라인을 바탕으로 시장 분위기를 분석해줘.
     - 오늘 한국 증시의 상승/하락 가능성을 전망해줘.
     - 텔레그램 Markdown 형식으로 작성해줘. 아래 규칙을 반드시 지켜줘:
       * 굵게 표시는 *텍스트* (별표 1개)
