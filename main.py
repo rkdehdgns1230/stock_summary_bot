@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone, timedelta
 import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
@@ -79,6 +80,8 @@ def get_fmkorea_info():
         return f"커뮤니티 정보 수집 실패: {e}"
 
 def summarize_and_send():
+    today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
+
     us_data = get_us_market()
     print("[데이터 수집] 미국 시장 지표:\n", us_data)
 
@@ -90,7 +93,7 @@ def summarize_and_send():
 
     # Gemini 프롬프트 구성
     prompt = f"""
-    너는 전문 주식 분석가이자 전략가야. 아래 데이터를 바탕으로 오늘 아침 한국 시장 투자 리포트를 작성해줘.
+    너는 전문 주식 분석가이자 전략가야. 아래 데이터를 바탕으로 {today} 아침 한국 시장 투자 리포트를 작성해줘.
     
     1. 미국 시장 지표:
     {us_data}
