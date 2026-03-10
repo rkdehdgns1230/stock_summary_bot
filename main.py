@@ -119,5 +119,12 @@ def summarize_and_send():
     print(f"[텔레그램] 응답 코드: {tg_response.status_code}")
     print(f"[텔레그램] 응답 본문: {tg_response.text}")
 
+    # Markdown 파싱 오류 발생 시 plain text로 재시도
+    if not tg_response.json().get("ok") and tg_response.status_code == 400:
+        print("[텔레그램] Markdown 파싱 오류 감지 → plain text로 재시도")
+        tg_response = requests.post(tg_url, data={"chat_id": CHAT_ID, "text": report})
+        print(f"[텔레그램] 재시도 응답 코드: {tg_response.status_code}")
+        print(f"[텔레그램] 재시도 응답 본문: {tg_response.text}")
+
 if __name__ == "__main__":
     summarize_and_send()
