@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timezone, timedelta
 import yfinance as yf
 import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 from google import genai
 import time
@@ -48,12 +49,10 @@ def get_kospi_futures():
 def get_fmkorea_info():
     """에펨코리아 주식게시판 인기글 및 본문 수집"""
     url = "https://www.fmkorea.com/index.php?mid=stock&sort_index=pop&order_type=desc"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
+    scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
     try:
         print(f"[에펨코리아] 목록 페이지 요청: {url}")
-        res = requests.get(url, headers=headers)
+        res = scraper.get(url)
         print(f"[에펨코리아] 목록 응답 코드: {res.status_code}")
         print(f"[에펨코리아] 목록 응답 헤더: {dict(res.headers)}")
 
@@ -83,7 +82,7 @@ def get_fmkorea_info():
 
             # 본문 수집을 위한 상세 페이지 접속
             post_url = f"https://www.fmkorea.com{link}"
-            post_res = requests.get(post_url, headers=headers)
+            post_res = scraper.get(post_url)
             print(f"[에펨코리아] 상세 페이지 응답 코드: {post_res.status_code} ({post_url})")
             post_soup = BeautifulSoup(post_res.text, 'html.parser')
             content_tag = post_soup.select_one('.xe_content') or post_soup.select_one('article')
