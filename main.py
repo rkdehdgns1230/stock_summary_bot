@@ -102,7 +102,7 @@ def summarize_and_send():
     - 오늘 한국 증시의 상승/하락 가능성을 전망해줘.
     """
 
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     response = model.generate_content(prompt)
     report = response.text
 
