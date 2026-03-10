@@ -80,8 +80,13 @@ def get_fmkorea_info():
 
 def summarize_and_send():
     us_data = get_us_market()
+    print("[데이터 수집] 미국 시장 지표:\n", us_data)
+
     kospi_data = get_kospi_futures()
+    print("[데이터 수집] 코스피200 야간선물:\n", kospi_data)
+
     fm_data = get_fmkorea_info()
+    print("[데이터 수집] 에펨코리아 여론:\n", fm_data[:300], "...")
 
     # Gemini 프롬프트 구성
     prompt = f"""
@@ -102,12 +107,17 @@ def summarize_and_send():
     - 오늘 한국 증시의 상승/하락 가능성을 전망해줘.
     """
 
+    print("[Gemini] 리포트 생성 중...")
     response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     report = response.text
+    print("[Gemini] 리포트 생성 완료:\n", report[:300], "...")
 
     # 텔레그램 전송
+    print("[텔레그램] 메시지 전송 중...")
     tg_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(tg_url, data={"chat_id": CHAT_ID, "text": report, "parse_mode": "Markdown"})
+    tg_response = requests.post(tg_url, data={"chat_id": CHAT_ID, "text": report, "parse_mode": "Markdown"})
+    print(f"[텔레그램] 응답 코드: {tg_response.status_code}")
+    print(f"[텔레그램] 응답 본문: {tg_response.text}")
 
 if __name__ == "__main__":
     summarize_and_send()
