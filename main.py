@@ -33,36 +33,25 @@ def get_us_market():
     return "\n".join(market_results)
 
 def get_kospi_futures():
-    """코스피 200 야간 선물 수집 (인베스팅닷컴 우회)"""
-    url = "https://kr.investing.com/indices/korea-200-futures"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    """코스피 200 지수 수집 (yfinance)"""
     try:
-        print(f"[코스피선물] 페이지 요청: {url}")
-        res = requests.get(url, headers=headers)
-        print(f"[코스피선물] 응답 코드: {res.status_code}")
-        print(f"[코스피선물] 응답 헤더: {dict(res.headers)}")
+        print("[코스피200] yfinance로 데이터 요청 중...")
+        data = yf.Ticker("^KS200").history(period="2d")
+        print(f"[코스피200] 수신된 데이터 행 수: {len(data)}")
 
-        if res.status_code != 200:
-            print(f"[코스피선물] 비정상 응답 본문(앞 500자):\n{res.text[:500]}")
-            return f"코스피200 야간선물: 정보 가져오기 실패 (HTTP {res.status_code})"
+        if len(data) < 2:
+            print(f"[코스피200] 데이터 부족: {data}")
+            return "코스피200: 데이터 부족"
 
-        soup = BeautifulSoup(res.text, 'html.parser')
-        # 인베스팅닷컴 구조상 데이터 속성 기반 추출 (구조 변경 시 수정 필요)
-        price_tag = soup.find("span", {"data-test": "instrument-price-last"})
-        change_tag = soup.find("span", {"data-test": "instrument-price-change-percent"})
-        print(f"[코스피선물] price 태그: {price_tag}")
-        print(f"[코스피선물] change 태그: {change_tag}")
-
-        if not price_tag or not change_tag:
-            print(f"[코스피선물] 태그 파싱 실패 - 응답 본문(앞 1000자):\n{res.text[:1000]}")
-            return "코스피200 야간선물: 태그 파싱 실패"
-
-        price = price_tag.text
-        change = change_tag.text
-        return f"코스피200 야간선물: {price} ({change})"
+        close = data['Close'].iloc[-1]
+        prev_close = data['Close'].iloc[-2]
+        change_pct = ((close - prev_close) / prev_close) * 100
+        result = f"코스피200: {close:.2f} ({change_pct:+.2f}%)"
+        print(f"[코스피200] 수집 완료: {result}")
+        return result
     except Exception as e:
-        print(f"[코스피선물] 예외 발생: {type(e).__name__}: {e}")
-        return "코스피200 야간선물: 정보 가져오기 실패"
+        print(f"[코스피200] 예외 발생: {type(e).__name__}: {e}")
+        return "코스피200: 정보 가져오기 실패"
 
 def get_fmkorea_info():
     """에펨코리아 주식게시판 인기글 및 본문 수집"""
@@ -133,7 +122,7 @@ def summarize_and_send():
     1. 미국 시장 지표:
     {us_data}
     
-    2. 국내 야간 선물:
+    2. 코스피200 지수 (전일 종가 기준):
     {kospi_data}
     
     3. 커뮤니티(에펨코리아) 여론:
