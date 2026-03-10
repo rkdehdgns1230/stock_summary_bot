@@ -37,13 +37,31 @@ def get_kospi_futures():
     url = "https://kr.investing.com/indices/korea-200-futures"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
+        print(f"[코스피선물] 페이지 요청: {url}")
         res = requests.get(url, headers=headers)
+        print(f"[코스피선물] 응답 코드: {res.status_code}")
+        print(f"[코스피선물] 응답 헤더: {dict(res.headers)}")
+
+        if res.status_code != 200:
+            print(f"[코스피선물] 비정상 응답 본문(앞 500자):\n{res.text[:500]}")
+            return f"코스피200 야간선물: 정보 가져오기 실패 (HTTP {res.status_code})"
+
         soup = BeautifulSoup(res.text, 'html.parser')
         # 인베스팅닷컴 구조상 데이터 속성 기반 추출 (구조 변경 시 수정 필요)
-        price = soup.find("span", {"data-test": "instrument-price-last"}).text
-        change = soup.find("span", {"data-test": "instrument-price-change-percent"}).text
+        price_tag = soup.find("span", {"data-test": "instrument-price-last"})
+        change_tag = soup.find("span", {"data-test": "instrument-price-change-percent"})
+        print(f"[코스피선물] price 태그: {price_tag}")
+        print(f"[코스피선물] change 태그: {change_tag}")
+
+        if not price_tag or not change_tag:
+            print(f"[코스피선물] 태그 파싱 실패 - 응답 본문(앞 1000자):\n{res.text[:1000]}")
+            return "코스피200 야간선물: 태그 파싱 실패"
+
+        price = price_tag.text
+        change = change_tag.text
         return f"코스피200 야간선물: {price} ({change})"
-    except Exception:
+    except Exception as e:
+        print(f"[코스피선물] 예외 발생: {type(e).__name__}: {e}")
         return "코스피200 야간선물: 정보 가져오기 실패"
 
 def get_fmkorea_info():
