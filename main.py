@@ -240,34 +240,70 @@ def get_persona_instruction(score):
 
 def sanitize_for_telegram_mdv2(text: str) -> str:
     """
-    AI 생성 텍스트를 MarkdownV2로 안전하게 이스케이프 처리.
-    - *bold*, _italic_, `code` 스팬의 구분자는 보존
-    - 스팬 내부 및 일반 텍스트의 MarkdownV2 특수문자는 이스케이프
-    - 이미 이스케이프된 문자는 중복 처리하지 않음
+    MarkdownV2 sanitizer. 지원 포맷:
+    *bold*, _italic_, __underline__, ~~strikethrough~~, ||spoiler||,
+    `inline code`, ```code block```, >blockquote
+    포맷팅 스팬은 내부 특수문자만 이스케이프하고 구분자는 보존.
+    일반 텍스트는 MarkdownV2 특수문자를 전체 이스케이프.
     """
-    # MarkdownV2 특수문자 (*, _ 포함 — 단 스팬 구분자 문맥 제외)
     PLAIN_ESCAPE_RE = re.compile(r'(?<!\\)([_*.\-+()~!=#>|{}\[\]])')
-    # 스팬 내부 이스케이프 (구분자 * _ ` 는 제외)
-    INNER_ESCAPE_RE = re.compile(r'(?<!\\)([.\-+()~!=#>|{}\[\]])')
-    FMT_RE = re.compile(r'(\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`)')
+    INNER_ESCAPE_RE = re.compile(r'(?<!\\)([.\-+()!=#>{}\[\]])')
 
-    result = []
-    last = 0
-    for m in FMT_RE.finditer(text):
-        # 스팬 이전 일반 텍스트: * _ 포함 전체 이스케이프
-        plain = text[last:m.start()]
-        result.append(PLAIN_ESCAPE_RE.sub(r'\\\1', plain))
+    protected = []
 
-        # 스팬 내부: 구분자 제외한 특수문자만 이스케이프
+    def protect(content):
+        idx = len(protected)
+        protected.append(content)
+        return f'\x00{idx}\x00'
+
+    # 1. 코드 블록 우선 보호 (내부 이스케이프 없음)
+    text = re.sub(r'```[\s\S]*?```', lambda m: protect(m.group()), text)
+
+    # 2. 인라인 포맷팅 스팬 보호 (긴 구분자 우선 매칭)
+    INLINE_RE = re.compile(
+        r'__[^_\n]+?__'      # __underline__
+        r'|\*[^*\n]+?\*'     # *bold*
+        r'|_[^_\n]+?_'       # _italic_
+        r'|~~[^\n]+?~~'      # ~~strikethrough~~
+        r'|\|\|[^\n]+?\|\|'  # ||spoiler||
+        r'|`[^`\n]+?`'       # `inline code`
+    )
+
+    def replace_inline(m):
         span = m.group()
-        delimiter = span[0]
-        inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
-        result.append(delimiter + inner + delimiter)
+        if span.startswith('__'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('__' + inner + '__')
+        if span.startswith('~~'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('~~' + inner + '~~')
+        if span.startswith('||'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('||' + inner + '||')
+        if span.startswith('*'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
+            return protect('*' + inner + '*')
+        if span.startswith('_'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
+            return protect('_' + inner + '_')
+        return protect(span)  # `inline code`: 이스케이프 없이 보호
 
-        last = m.end()
-    # 마지막 일반 텍스트
-    result.append(PLAIN_ESCAPE_RE.sub(r'\\\1', text[last:]))
-    return ''.join(result)
+    text = INLINE_RE.sub(replace_inline, text)
+
+    # 3. 일반 텍스트 이스케이프 (blockquote 줄은 > 접두어 보존)
+    lines = text.split('\n')
+    escaped = []
+    for line in lines:
+        if line.startswith('>'):
+            escaped.append('>' + PLAIN_ESCAPE_RE.sub(r'\\\1', line[1:]))
+        else:
+            escaped.append(PLAIN_ESCAPE_RE.sub(r'\\\1', line))
+    text = '\n'.join(escaped)
+
+    # 4. 보호된 스팬 복원
+    for i, p in enumerate(protected):
+        text = text.replace(f'\x00{i}\x00', p)
+    return text
 
 def summarize_and_send():
     today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
@@ -321,18 +357,43 @@ Step 5. 위 네 가지 요소를 종합하여 오늘 코스피 및 코스닥의 
 Step 6. 특정 데이터가 누락된 경우, 다른 지표들을 근거로 삼아 그 항목을 최대한 추론·보완한다.
 
 [출력 구조 — 아래 6개 섹션을 순서대로 작성할 것]
-1. 📋 *오늘의 한 줄 요약* — 페르소나 어조로 오늘 시장을 단 한 문장으로 정의
-2. 🌏 *글로벌 시장 동향* — 미국 지수·환율·국채금리를 분석하고 한국 시장 영향도를 서술
-3. 📰 *핵심 뉴스 & 이슈* — 오늘 시장에 영향을 줄 상위 3~5개 뉴스를 한 줄씩 요약
-4. 🔮 *오늘의 증시 전망* — 상승/하락 가능성 판단 및 핵심 근거 (강도 표현 포함)
-5. 🎯 *대응 전략* — 한국·미국 시장 포지션 제안 (매수/매도/관망, 주목 섹터)
-6. ⚠️ *리스크 요인* — 전망을 뒤집을 수 있는 핵심 변수 1~3가지
+- 섹션 헤더는 반드시 __이모지 헤더텍스트__ (밑줄) 형식으로 작성할 것
+- 섹션 사이에는 반드시 ━━━━━━━━━━ 구분선을 삽입할 것
+
+1. __📋 오늘의 한 줄 요약__
+   헤더 다음 줄에 반드시 >페르소나 어조의 한 문장을 인용 블록(blockquote)으로 작성
+
+2. __🌏 글로벌 시장 동향__
+   수집된 수치 데이터(지수값, 환율, 금리)는 아래처럼 코드 블록으로 묶을 것:
+   ```
+   나스닥: 18,234.56 (+2.35%)
+   S&P500: 5,123.45 (+1.12%)
+   환율: 1,320.50 원
+   미 10년물: 4.25%
+   ```
+   이후 한국 시장 영향 분석은 일반 텍스트로 서술
+
+3. __📰 핵심 뉴스 & 이슈__
+   오늘 시장에 영향을 줄 상위 3~5개 뉴스를 한 줄씩 요약
+
+4. __🔮 오늘의 증시 전망__
+   분석 내용은 일반 텍스트로 서술하고, 최종 결론 한 줄만 ||스포일러||로 감싸서 클릭 유도
+
+5. __🎯 대응 전략__
+   한국·미국 시장 포지션 제안 (매수/매도/관망, 주목 섹터)
+
+6. __⚠️ 리스크 요인__
+   전망을 뒤집을 수 있는 핵심 변수 1~3가지
 
 [Markdown 규칙 — 텔레그램 MarkdownV2 전용]
+- 섹션 헤더 밑줄: __텍스트__
 - 굵게: *텍스트* (별표 1개)
 - 기울임: _텍스트_ (언더스코어 1개)
+- 인용 블록: >텍스트 (줄 맨 앞에 > 붙이기)
+- 스포일러: ||텍스트||
+- 코드 블록: ```텍스트```
 - 인라인 코드: `텍스트`
-- 절대 사용 금지: **텍스트** (별표 2개), ~~취소선~~, ### 헤더, > 인용
+- 절대 사용 금지: **텍스트** (별표 2개), ### 헤더
 - 특수문자 이스케이프는 하지 말 것 (후처리에서 자동 처리됨)
 - 이모지는 페르소나 에너지에 맞는 빈도로 사용할 것
 """
