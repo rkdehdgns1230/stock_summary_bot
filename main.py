@@ -135,61 +135,81 @@ def get_fear_and_greed_score() -> int:
         return -1
 
 def generate_fear_greed_gauge_image(score):
-    """Matplotlib로 공포·탐욕 지수 게이지 이미지 생성"""
+    """공포·탐욕 지수 반원 게이지 이미지 생성 (직교좌표 기반)"""
     fp = _get_korean_font()
 
-    # 1. 아치형 그래프 설정
-    fig, ax = plt.subplots(figsize=(6, 4), subplot_kw={'projection': 'polar'})
-    ax.set_theta_offset(np.pi)  # 0도를 왼쪽으로 설정
-    ax.set_theta_direction(-1)  # 시계 방향으로 설정
-    ax.set_ylim(0, 1)           # 반지름 범위
+    fig, ax = plt.subplots(figsize=(7, 5))
+    fig.patch.set_facecolor('white')
+    ax.set_xlim(-1.6, 1.6)
+    ax.set_ylim(-0.65, 1.45)
+    ax.set_aspect('equal')
+    ax.axis('off')
 
-    # 2. 색상 세그먼트 그리기 (Wedges)
-    # 0 - 25: (극도의 공포, Red), 25 - 45 (공포, Orange), 45 - 55 (중립, Yellow), 55 - 75 (탐욕, Light Green), 75 - 100 (극도의 탐욕, Dark Green)
-    theta_ranges = [(0, 25, '#e74c3c'), (25, 45, '#FFA500'), (45, 55, '#FFFF66'), (55, 75, '#90EE90'), (75, 100, '#006400')]
+    # 색상 세그먼트: (시작점수, 끝점수, 색상, 라벨)
+    # 각도 변환: score=0 → 180°(좌), score=100 → 0°(우)
+    OUTER_R = 1.0
+    INNER_R = 0.55
+    segments = [
+        (0,   25,  '#d32f2f', '극도의\n공포'),
+        (25,  45,  '#FF8C00', '공포'),
+        (45,  55,  '#F9A825', '중립'),
+        (55,  75,  '#7CB342', '탐욕'),
+        (75,  100, '#2E7D32', '극도의\n탐욕'),
+    ]
 
-    for start, end, color in theta_ranges:
-        wedge = patches.Wedge((0, 0), r=1, theta1=start * 180 / 100, theta2=end * 180 / 100, color=color, edgecolor='white', alpha=0.9, width=0.4)
-        ax.add_patch(wedge)
+    for start_s, end_s, color, label in segments:
+        # patches.Wedge는 직교좌표계 → theta1 < theta2 순서여야 함
+        theta1 = 180 - end_s * 1.8
+        theta2 = 180 - start_s * 1.8
+        ax.add_patch(patches.Wedge(
+            center=(0, 0), r=OUTER_R,
+            theta1=theta1, theta2=theta2,
+            width=OUTER_R - INNER_R,
+            facecolor=color, edgecolor='white', linewidth=2,
+        ))
 
-    # 3. 바늘 그리기
-    # 스코프(0~100)를 각도(0~180)로 변환
-    # 각도 map: left=180(score=0), right=0(score=100)
-    angle = 180 - (score * 1.8)
-    rad_angle = np.deg2rad(angle)
+        # 세그먼트 바깥쪽에 라벨 배치
+        mid_angle = np.deg2rad(180 - (start_s + end_s) / 2 * 1.8)
+        label_r = OUTER_R + 0.25
+        ax.text(
+            label_r * np.cos(mid_angle),
+            label_r * np.sin(mid_angle),
+            label, fontproperties=fp,
+            ha='center', va='center', fontsize=9, color='#222222', linespacing=1.3,
+        )
 
-    # 바늘의 선과 중심점
-    ax.plot([rad_angle, rad_angle], [0, 1.1], color='black', lw=3, solid_capstyle='round')
-    ax.plot(rad_angle, 0, marker='o', color='black', markersize=10)
+    # 내부 눈금 숫자 (0, 25, 50, 75, 100)
+    for tick in [0, 25, 50, 75, 100]:
+        tick_angle = np.deg2rad(180 - tick * 1.8)
+        tick_r = INNER_R - 0.12
+        ax.text(
+            tick_r * np.cos(tick_angle),
+            tick_r * np.sin(tick_angle),
+            str(tick), ha='center', va='center', fontsize=8, color='#666666',
+        )
 
-    # 4. 텍스트 추가
-    labels = [('극도의 공포', 15), ('공포', 63), ('중립', 90), ('탐욕', 117), ('극도의 탐욕', 165)]
-    for text, label_angle in labels:
-        rad_label_angle = np.deg2rad(label_angle)
-        ax.text(rad_label_angle, 1.25, text, fontproperties=fp,
-                horizontalalignment='center', verticalalignment='center', fontsize=11, color='black')
-        
-    # 5. 현재 지수 숫자 및 단계 텍스트 표시
-    ax.text(0, -0.6, f'현재 지수: {score}', horizontalalignment='center', fontsize=20, 
-            verticalalignment='center', fontproperties=fp, fontweight='bold', color='black')
-    
-    # 지수 단계 판단
-    stage = get_fng_description(score)
+    # 바늘
+    needle_angle = np.deg2rad(180 - score * 1.8)
+    needle_len = OUTER_R - 0.04
+    ax.plot(
+        [0, needle_len * np.cos(needle_angle)],
+        [0, needle_len * np.sin(needle_angle)],
+        color='#1a1a1a', lw=3, solid_capstyle='round', zorder=4,
+    )
+    ax.add_patch(plt.Circle((0, 0), 0.07, color='#1a1a1a', zorder=5))
 
-    ax.text(0, -1.0, f'현재 단계: {stage}', horizontalalignment='center', fontsize=12,
-            verticalalignment='center', fontproperties=fp, color='black')
-    
-    # 6. 불필요한 극좌표계 제거
-    ax.grid(False)
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    ax.spines['polar'].set_visible(False)
+    # 점수 (대형)
+    ax.text(0, -0.2, str(score), ha='center', va='center',
+            fontproperties=fp, fontsize=44, fontweight='bold', color='#1a1a1a')
 
-    # 7. 이미지 저장
+    # 단계 텍스트
+    ax.text(0, -0.48, get_fng_description(score), ha='center', va='center',
+            fontproperties=fp, fontsize=12, color='#555555')
+
     img_data = io.BytesIO()
-    plt.savefig(img_data, format='png', bbox_inches='tight', transparent=True)
+    plt.savefig(img_data, format='png', bbox_inches='tight', dpi=150, facecolor='white')
     img_data.seek(0)
-    plt.close(fig) # 메모리 관리
+    plt.close(fig)
     return img_data
 
 def get_fng_description(score):
