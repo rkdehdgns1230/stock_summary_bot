@@ -5,6 +5,10 @@ import requests
 from bs4 import BeautifulSoup
 from google import genai
 import time
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+import io
 
 # 1. 설정 (환경변수 사용)
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -88,8 +92,115 @@ def get_naver_finance_news():
         print(f"[네이버금융] 예외 발생: {type(e).__name__}: {e}")
         return f"뉴스 수집 실패: {e}"
 
+RATING_KO = {
+    "extreme fear": "극도의 공포",
+    "fear": "공포",
+    "neutral": "중립",
+    "greed": "탐욕",
+    "extreme greed": "극도의 탐욕",
+}
+
+def get_fear_and_greed_score() -> int:
+    """CNN 주식시장 공포·탐욕 지수 수집"""
+    url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://edition.cnn.com/",
+        "Origin": "https://edition.cnn.com",
+    }
+    try:
+        print("[공포와탐욕] CNN Fear & Greed 지수 요청 중...")
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()["fear_and_greed"]
+        score = round(data["score"])
+        rating_en = data["rating"]
+        rating_ko = RATING_KO.get(rating_en, rating_en)
+        prev_close = round(data["previous_close"])
+        result = f"공포·탐욕 지수: {score}/100 ({rating_ko}) | 전일: {prev_close}"
+        print(f"[공포와탐욕] 수집 완료: {result}")
+        return score
+    except Exception as e:
+        print(f"[공포와탐욕] 예외 발생: {type(e).__name__}: {e}")
+        return -1
+
+def generate_fear_greed_gauge_image(score):
+    """Matplotlib로 공포·탐욕 지수 게이지 이미지 생성"""
+
+    # 1. 아치형 그래프 설정
+    fig, ax = plt.subplots(figsize=(6, 4), subplot_kw={'projection': 'polar'})
+    ax.set_theta_offset(np.pi)  # 0도를 왼쪽으로 설정
+    ax.set_theta_direction(-1)  # 시계 방향으로 설정
+    ax.set_ylim(0, 1)           # 반지름 범위
+
+    # 2. 색상 세그먼트 그리기 (Wedges)
+    # 0 - 25: (극도의 공포, Red), 25 - 45 (공포, Orange), 45 - 55 (중립, Yellow), 55 - 75 (탐욕, Light Green), 75 - 100 (극도의 탐욕, Dark Green)
+    theta_ranges = [(0, 25, '#e74c3c'), (25, 45, '#FFA500'), (45, 55, '#FFFF66'), (55, 75, '#90EE90'), (75, 100, '#006400')]
+
+    for start, end, color in theta_ranges:
+        wedge = patches.Wedge((0, 0), r=1, theta1=start * 180 / 100, theta2=end * 180 / 100, color=color, edgecolor='white', alpha=0.9, width=0.4)
+        ax.add_patch(wedge)
+
+    # 3. 바늘 그리기
+    # 스코프(0~100)를 각도(0~180)로 변환
+    # 각도 map: left=180(score=0), right=0(score=100)
+    angle = 180 - (score * 1.8)
+    rad_angle = np.deg2rad(angle)
+
+    # 바늘의 선과 중심점
+    ax.plot([rad_angle, rad_angle], [0, 1.1], color='black', lw=3, solid_capstyle='round')
+    ax.plot(rad_angle, 0, marker='o', color='black', markersize=10)
+
+    # 4. 텍스트 추가
+    labels = [('극도의 공포', 15), ('공포', 63), ('중립', 90), ('탐욕', 117), ('극도의 탐욕', 165)]
+    for text, label_angle in labels:
+        rad_label_angle = np.deg2rad(label_angle)
+        ax.text(rad_label_angle, 1.25, text, fontproperties='Malgun Gothic', # 한글 폰트 설정 필요
+                horizontalalignment='center', verticalalignment='center', fontsize=11, color='black')
+        
+    # 5. 현재 지수 숫자 및 단계 텍스트 표시
+    ax.text(0, -0.6, f'현재 지수: {score}', horizontalalignment='center', fontsize=20, 
+            verticalalignment='center', fontproperties='Malgun Gothic', fontweight='bold', color='black')
+    
+    # 지수 단계 판단
+    stage = get_fng_description(score)
+
+    ax.text(0, -1.0, f'현재 단계: {stage}', horizontalalignment='center', fontsize=12,
+            verticalalignment='center', fontproperties='Malgun Gothic', color='black')
+    
+    # 6. 불필요한 극좌표계 제거
+    ax.grid(False)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.spines['polar'].set_visible(False)
+
+    # 7. 이미지 저장
+    img_data = io.BytesIO()
+    plt.savefig(img_data, format='png', bbox_inches='tight', transparent=True)
+    img_data.seek(0)
+    plt.close(fig) # 메모리 관리
+    return img_data
+
+def get_fng_description(score):
+    if score < 25:
+        return "극도의 공포 (Extreme Fear)"
+    elif score < 45:
+        return "공포 (Fear)"
+    elif score < 55:
+        return "중립 (Neutral)"
+    elif score < 75:
+        return "탐욕 (Greed)"
+    else:
+        return "극도의 탐욕 (Extreme Greed)"
+
 def summarize_and_send():
     today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
+
+    score = get_fear_and_greed_score()
+    fng_stage = get_fng_description(score)
+    gauge_image = generate_fear_greed_gauge_image(score)
+    print("[데이터 수집] 공포·탐욕 지수:\n", score)
 
     us_data = get_us_market()
     print("[데이터 수집] 미국 시장 지표:\n", us_data)
@@ -99,6 +210,7 @@ def summarize_and_send():
 
     news_data = get_naver_finance_news()
     print("[데이터 수집] 네이버 금융 뉴스:\n", news_data[:300], "...")
+
 
     # Gemini 프롬프트 구성
     prompt = f"""
@@ -110,7 +222,10 @@ def summarize_and_send():
     2. 코스피200 지수 (전일 종가 기준):
     {kospi_data}
     
-    3. 국내 증권 주요 뉴스 (네이버 금융):
+    3. CNN 주식시장 공포·탐욕 지수:
+    {fng_stage} ({score}/100)
+    
+    4. 국내 증권 주요 뉴스 (네이버 금융):
     {news_data}
     
     요구사항:
@@ -131,6 +246,15 @@ def summarize_and_send():
     print("[Gemini] 리포트 생성 완료:\n", report[:300], "...")
 
     # 텔레그램 전송
+    print("[텔레그램] 게이지 이미지 전송 중...")
+    tg_photo_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+    files = {'photo': ('fear_greed_gauge.png', gauge_image, 'image/png')}
+    payload_photo = {'chat_id': CHAT_ID, 'caption': f'📊 시장 심리: 공포 & 탐욕 지수 (8AM)', 'parse_mode': 'Markdown'}
+    tg_photo_response = requests.post(tg_photo_url, data=payload_photo, files=files)
+    print(f"[텔레그램] 이미지 응답 코드: {tg_photo_response.status_code}")
+    if not tg_photo_response.json().get("ok"):
+        print(f"[텔레그램] 이미지 전송 실패: {tg_photo_response.text}")
+
     print("[텔레그램] 메시지 전송 중...")
     tg_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     tg_response = requests.post(tg_url, data={"chat_id": CHAT_ID, "text": report, "parse_mode": "Markdown"})
