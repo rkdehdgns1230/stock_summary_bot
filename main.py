@@ -7,8 +7,17 @@ from google import genai
 import time
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.font_manager as fm
 import numpy as np
 import io
+
+def _get_korean_font() -> fm.FontProperties:
+    """OS별 한글 폰트 자동 선택 (Malgun Gothic → NanumGothic → 기본 폰트 순)"""
+    available = {f.name for f in fm.fontManager.ttflist}
+    for name in ['Malgun Gothic', 'AppleGothic', 'NanumGothic', 'NanumBarunGothic']:
+        if name in available:
+            return fm.FontProperties(family=name)
+    return fm.FontProperties()
 
 # 1. 설정 (환경변수 사용)
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -127,6 +136,7 @@ def get_fear_and_greed_score() -> int:
 
 def generate_fear_greed_gauge_image(score):
     """Matplotlib로 공포·탐욕 지수 게이지 이미지 생성"""
+    fp = _get_korean_font()
 
     # 1. 아치형 그래프 설정
     fig, ax = plt.subplots(figsize=(6, 4), subplot_kw={'projection': 'polar'})
@@ -156,18 +166,18 @@ def generate_fear_greed_gauge_image(score):
     labels = [('극도의 공포', 15), ('공포', 63), ('중립', 90), ('탐욕', 117), ('극도의 탐욕', 165)]
     for text, label_angle in labels:
         rad_label_angle = np.deg2rad(label_angle)
-        ax.text(rad_label_angle, 1.25, text, fontproperties='Malgun Gothic', # 한글 폰트 설정 필요
+        ax.text(rad_label_angle, 1.25, text, fontproperties=fp,
                 horizontalalignment='center', verticalalignment='center', fontsize=11, color='black')
         
     # 5. 현재 지수 숫자 및 단계 텍스트 표시
     ax.text(0, -0.6, f'현재 지수: {score}', horizontalalignment='center', fontsize=20, 
-            verticalalignment='center', fontproperties='Malgun Gothic', fontweight='bold', color='black')
+            verticalalignment='center', fontproperties=fp, fontweight='bold', color='black')
     
     # 지수 단계 판단
     stage = get_fng_description(score)
 
     ax.text(0, -1.0, f'현재 단계: {stage}', horizontalalignment='center', fontsize=12,
-            verticalalignment='center', fontproperties='Malgun Gothic', color='black')
+            verticalalignment='center', fontproperties=fp, color='black')
     
     # 6. 불필요한 극좌표계 제거
     ax.grid(False)
