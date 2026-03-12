@@ -43,7 +43,7 @@ pip install -r requirements.txt
 | 환경변수 | 설명 |
 |----------|------|
 | `TELEGRAM_TOKEN` | 텔레그램 봇 토큰 ([BotFather](https://t.me/BotFather)에서 발급) |
-| `TELEGRAM_CHAT_ID` | 리포트를 수신할 채팅 ID |
+| `TELEGRAM_CHAT_IDS` | 리포트를 수신할 채팅 ID 리스트 (,를 구분자로 사용) |
 | `GEMINI_API_KEY` | Google Gemini API 키 ([Google AI Studio](https://aistudio.google.com/)에서 발급) |
 
 **Linux/macOS**

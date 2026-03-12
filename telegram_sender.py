@@ -1,0 +1,98 @@
+import re
+import requests
+import config
+
+
+def sanitize_for_telegram_mdv2(text: str) -> str:
+    """
+    MarkdownV2 sanitizer. 지원 포맷:
+    *bold*, _italic_, __underline__, ~~strikethrough~~, ||spoiler||,
+    `inline code`, ```code block```, >blockquote
+    포맷팅 스팬은 내부 특수문자만 이스케이프하고 구분자는 보존.
+    일반 텍스트는 MarkdownV2 특수문자를 전체 이스케이프.
+    """
+    PLAIN_ESCAPE_RE = re.compile(r'(?<!\\)([_*.\-+()~!=#>|{}\[\]])')
+    INNER_ESCAPE_RE = re.compile(r'(?<!\\)([.\-+()!=#>{}\[\]])')
+
+    protected = []
+
+    def protect(content):
+        idx = len(protected)
+        protected.append(content)
+        return f'\x00{idx}\x00'
+
+    # 1. 코드 블록 우선 보호 (내부 이스케이프 없음)
+    text = re.sub(r'```[\s\S]*?```', lambda m: protect(m.group()), text)
+
+    # 2. 인라인 포맷팅 스팬 보호 (긴 구분자 우선 매칭)
+    INLINE_RE = re.compile(
+        r'__[^_\n]+?__'      # __underline__
+        r'|\*[^*\n]+?\*'     # *bold*
+        r'|_[^_\n]+?_'       # _italic_
+        r'|~~[^\n]+?~~'      # ~~strikethrough~~
+        r'|\|\|[^\n]+?\|\|'  # ||spoiler||
+        r'|`[^`\n]+?`'       # `inline code`
+    )
+
+    def replace_inline(m):
+        span = m.group()
+        if span.startswith('__'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('__' + inner + '__')
+        if span.startswith('~~'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('~~' + inner + '~~')
+        if span.startswith('||'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
+            return protect('||' + inner + '||')
+        if span.startswith('*'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
+            return protect('*' + inner + '*')
+        if span.startswith('_'):
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
+            return protect('_' + inner + '_')
+        return protect(span)  # `inline code`: 이스케이프 없이 보호
+
+    text = INLINE_RE.sub(replace_inline, text)
+
+    # 3. 일반 텍스트 이스케이프 (blockquote 줄은 > 접두어 보존)
+    lines = text.split('\n')
+    escaped = []
+    for line in lines:
+        if line.startswith('>'):
+            escaped.append('>' + PLAIN_ESCAPE_RE.sub(r'\\\1', line[1:]))
+        else:
+            escaped.append(PLAIN_ESCAPE_RE.sub(r'\\\1', line))
+    text = '\n'.join(escaped)
+
+    # 4. 보호된 스팬 복원
+    for i, p in enumerate(protected):
+        text = text.replace(f'\x00{i}\x00', p)
+    return text
+
+
+def send_gauge_image(gauge_image) -> None:
+    """공포·탐욕 지수 게이지 이미지를 텔레그램으로 전송"""
+    url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendPhoto"
+    files = {'photo': ('fear_greed_gauge.png', gauge_image, 'image/png')}
+    payload = {'chat_id': config.CHAT_ID, 'caption': '📊 시장 심리: 공포 & 탐욕 지수 (8AM)'}
+    print("[텔레그램] 게이지 이미지 전송 중...")
+    response = requests.post(url, data=payload, files=files)
+    print(f"[텔레그램] 이미지 응답 코드: {response.status_code}")
+    if not response.json().get("ok"):
+        print(f"[텔레그램] 이미지 전송 실패: {response.text}")
+
+
+def send_report(report: str) -> None:
+    """리포트 텍스트를 MarkdownV2로 전송, 실패 시 plain text로 재시도"""
+    url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
+    print("[텔레그램] 메시지 전송 중...")
+    response = requests.post(url, data={"chat_id": config.CHAT_ID, "text": report, "parse_mode": "MarkdownV2"})
+    print(f"[텔레그램] 응답 코드: {response.status_code}")
+    print(f"[텔레그램] 응답 본문: {response.text}")
+
+    if not response.json().get("ok") and response.status_code == 400:
+        print("[텔레그램] MarkdownV2 파싱 오류 감지 → plain text로 재시도")
+        response = requests.post(url, data={"chat_id": config.CHAT_ID, "text": report})
+        print(f"[텔레그램] 재시도 응답 코드: {response.status_code}")
+        print(f"[텔레그램] 재시도 응답 본문: {response.text}")
