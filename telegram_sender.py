@@ -87,12 +87,14 @@ def send_report(report: str) -> None:
     """리포트 텍스트를 MarkdownV2로 전송, 실패 시 plain text로 재시도"""
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
     print("[텔레그램] 메시지 전송 중...")
-    response = requests.post(url, data={"chat_id": config.CHAT_ID, "text": report, "parse_mode": "MarkdownV2"})
-    print(f"[텔레그램] 응답 코드: {response.status_code}")
-    print(f"[텔레그램] 응답 본문: {response.text}")
 
-    if not response.json().get("ok") and response.status_code == 400:
-        print("[텔레그램] MarkdownV2 파싱 오류 감지 → plain text로 재시도")
-        response = requests.post(url, data={"chat_id": config.CHAT_ID, "text": report})
-        print(f"[텔레그램] 재시도 응답 코드: {response.status_code}")
-        print(f"[텔레그램] 재시도 응답 본문: {response.text}")
+    for chat_id in config.CHAT_IDS:
+        response = requests.post(url, data={"chat_id": chat_id, "text": report, "parse_mode": "MarkdownV2"})
+        print(f"[텔레그램] 응답 코드: {response.status_code}")
+        print(f"[텔레그램] 응답 본문: {response.text}")
+
+        if not response.json().get("ok") and response.status_code == 400:
+            print("[텔레그램] MarkdownV2 파싱 오류 감지 → plain text로 재시도")
+            response = requests.post(url, data={"chat_id": chat_id, "text": report})
+            print(f"[텔레그램] 재시도 응답 코드: {response.status_code}")
+            print(f"[텔레그램] 재시도 응답 본문: {response.text}")
