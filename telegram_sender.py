@@ -74,13 +74,17 @@ def sanitize_for_telegram_mdv2(text: str) -> str:
 def send_gauge_image(gauge_image) -> None:
     """공포·탐욕 지수 게이지 이미지를 텔레그램으로 전송"""
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendPhoto"
-    files = {'photo': ('fear_greed_gauge.png', gauge_image, 'image/png')}
-    payload = {'chat_id': config.CHAT_ID, 'caption': '📊 시장 심리: 공포 & 탐욕 지수 (8AM)'}
-    print("[텔레그램] 게이지 이미지 전송 중...")
-    response = requests.post(url, data=payload, files=files)
-    print(f"[텔레그램] 이미지 응답 코드: {response.status_code}")
-    if not response.json().get("ok"):
-        print(f"[텔레그램] 이미지 전송 실패: {response.text}")
+
+    for chat_id in config.CHAT_IDS:
+        gauge_image.seek(0)
+        files = {'photo': ('fear_greed_gauge.png', gauge_image, 'image/png')}
+        payload = {'chat_id': chat_id, 'caption': '📊 시장 심리: 공포 & 탐욕 지수 (8AM)'}
+        print(f"[텔레그램] 게이지 이미지 전송 중... (chat_id={chat_id})")
+        response = requests.post(url, data=payload, files=files)
+        print(f"[텔레그램] 이미지 응답 코드: {response.status_code}")
+        
+        if not response.json().get("ok"):
+            print(f"[텔레그램] 이미지 전송 실패: {response.text}")
 
 
 def send_report(report: str) -> None:
