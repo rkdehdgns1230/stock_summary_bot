@@ -60,6 +60,15 @@ $env:TELEGRAM_CHAT_IDS="your_chat_id_1,your_chat_id_2"
 $env:GEMINI_API_KEY="your_gemini_api_key"
 ```
 
+**GitHub Actions Secrets (권장)**
+```text
+TELEGRAM_TOKEN=your_token
+TELEGRAM_CHAT_IDS=["your_chat_id_1", "your_chat_id_2"]
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+`TELEGRAM_CHAT_IDS`는 쉼표 구분 문자열도 지원하지만, GitHub Actions에서는 JSON 배열 문자열 형식이 가장 안전합니다.
+
 ---
 
 ## 🚀 실행 방법
