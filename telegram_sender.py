@@ -75,7 +75,7 @@ def send_gauge_image(gauge_image) -> None:
     """공포·탐욕 지수 게이지 이미지를 텔레그램으로 전송"""
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendPhoto"
 
-    for chat_id in config.CHAT_IDS:
+    for chat_id in config.TELEGRAM_CHAT_IDS:
         gauge_image.seek(0)
         files = {'photo': ('fear_greed_gauge.png', gauge_image, 'image/png')}
         payload = {'chat_id': chat_id, 'caption': '📊 시장 심리: 공포 & 탐욕 지수 (8AM)'}
@@ -92,7 +92,7 @@ def send_report(report: str) -> None:
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
     print("[텔레그램] 메시지 전송 중...")
 
-    for chat_id in config.CHAT_IDS:
+    for chat_id in config.TELEGRAM_CHAT_IDS:
         response = requests.post(url, data={"chat_id": chat_id, "text": report, "parse_mode": "MarkdownV2"})
         print(f"[텔레그램] 응답 코드: {response.status_code}")
         print(f"[텔레그램] 응답 본문: {response.text}")

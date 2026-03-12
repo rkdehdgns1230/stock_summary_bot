@@ -43,20 +43,20 @@ pip install -r requirements.txt
 | 환경변수 | 설명 |
 |----------|------|
 | `TELEGRAM_TOKEN` | 텔레그램 봇 토큰 ([BotFather](https://t.me/BotFather)에서 발급) |
-| `TELEGRAM_CHAT_IDS` | 리포트를 수신할 채팅 ID 리스트 (,를 구분자로 사용) |
+| `TELEGRAM_CHAT_IDS` | 리포트를 수신할 채팅 ID 리스트 (`123456789,987654321` 또는 `["123456789", "987654321"]`) |
 | `GEMINI_API_KEY` | Google Gemini API 키 ([Google AI Studio](https://aistudio.google.com/)에서 발급) |
 
 **Linux/macOS**
 ```bash
 export TELEGRAM_TOKEN="your_token"
-export TELEGRAM_CHAT_ID="your_chat_id"
+export TELEGRAM_CHAT_IDS="your_chat_id_1,your_chat_id_2"
 export GEMINI_API_KEY="your_gemini_api_key"
 ```
 
 **Windows (PowerShell)**
 ```powershell
 $env:TELEGRAM_TOKEN="your_token"
-$env:TELEGRAM_CHAT_ID="your_chat_id"
+$env:TELEGRAM_CHAT_IDS="your_chat_id_1,your_chat_id_2"
 $env:GEMINI_API_KEY="your_gemini_api_key"
 ```
 
