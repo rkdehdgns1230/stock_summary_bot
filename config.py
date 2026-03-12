@@ -1,7 +1,7 @@
 import os
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
-CHAT_IDS = [cid.strip() for cid in os.environ.get('TELEGRAM_CHAT_ID', '').split(',') if cid.strip()]
+CHAT_IDS = [cid.strip() for cid in os.environ.get('TELEGRAM_CHAT_IDS', '').split(',') if cid.strip()]
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 RATING_KO = {
