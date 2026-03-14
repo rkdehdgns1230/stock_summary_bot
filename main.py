@@ -18,12 +18,15 @@ def summarize_and_send():
     print("[데이터 수집] 미국 시장 지표:\n", us_data)
 
     kospi_data = market_data.fetch_kospi_futures()
-    print("[데이터 수집] 코스피200:\n", kospi_data)
+    print("[데이터 수집] 코스피:\n", kospi_data)
+
+    kosdaq_data = market_data.fetch_kosdaq_index()
+    print("[데이터 수집] 코스닥:\n", kosdaq_data)
 
     news_data = market_data.fetch_naver_finance_news()
     print("[데이터 수집] 네이버 금융 뉴스:\n", news_data[:300], "...")
 
-    report = ai_report.generate_report(today, score, fng_stage, us_data, kospi_data, news_data)
+    report = ai_report.generate_report(today, score, fng_stage, us_data, kospi_data, kosdaq_data, news_data)
     report = telegram_sender.sanitize_for_telegram_mdv2(report)
 
     telegram_sender.send_gauge_image(gauge_image)
