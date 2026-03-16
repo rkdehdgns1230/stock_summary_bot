@@ -3,6 +3,9 @@ import yfinance as yf
 from bs4 import BeautifulSoup
 import config
 
+_BODY_FETCH_COUNT = 5   # 본문을 수집할 상위 기사 수
+_BODY_MAX_CHARS = 300   # 기사 본문 최대 수집 길이 (자)
+
 def fetch_us_market():
     tickers = {
         '나스닥': '^IXIC',
@@ -104,6 +107,43 @@ def get_fng_description(score):
         return "극도의 탐욕 (Extreme Greed)"
 
 
+def _fetch_article_body(article_url: str, headers: dict) -> str:
+    """네이버 금융 뉴스 기사 본문 수집 (실패 시 빈 문자열 반환)
+
+    네이버 금융 뉴스 read 페이지는 기사 본문을 iframe으로 제공하므로,
+    iframe src를 추출한 뒤 해당 페이지에서 본문 셀렉터를 순서대로 시도한다.
+    """
+    try:
+        res = requests.get(article_url, headers=headers, timeout=5)
+        res.encoding = 'euc-kr'
+        if res.status_code != 200:
+            return ""
+
+        soup = BeautifulSoup(res.text, 'html.parser')
+        iframe = soup.find('iframe', id='newsFrame')
+        if not iframe or not iframe.get('src'):
+            return ""
+
+        iframe_src = iframe['src']
+        if not iframe_src.startswith('http'):
+            iframe_src = 'https://finance.naver.com' + iframe_src
+
+        iframe_res = requests.get(iframe_src, headers=headers, timeout=5)
+        iframe_res.encoding = 'utf-8'
+        if iframe_res.status_code != 200:
+            return ""
+
+        iframe_soup = BeautifulSoup(iframe_res.text, 'html.parser')
+        for selector in ['#dic_area', '#articleBodyContents', '.newsct_article', '#articeBody']:
+            content = iframe_soup.select_one(selector)
+            if content:
+                text = ' '.join(content.get_text(strip=True).split())
+                return text[:_BODY_MAX_CHARS]
+    except Exception:
+        pass
+    return ""
+
+
 def fetch_naver_finance_news() -> str:
     """네이버 금융 증권 뉴스 수집"""
     url = "https://finance.naver.com/news/news_list.naver?mode=LSS2D&section_id=101&section_id2=258"
@@ -132,10 +172,22 @@ def fetch_naver_finance_news() -> str:
         for i, article in enumerate(articles):
             title = article.get_text(strip=True)
             print(f"[네이버금융] 기사 #{i+1}: {title}")
-            results.append(title)
+
+            if i < _BODY_FETCH_COUNT:
+                href = article.get('href', '')
+                article_url = ('https://finance.naver.com' + href) if href.startswith('/') else href
+                body = _fetch_article_body(article_url, headers) if article_url else ''
+                if body:
+                    print(f"[네이버금융] 기사 #{i+1} 본문 수집 완료 ({len(body)}자)")
+                    results.append(f"- {title}\n  본문: {body}")
+                else:
+                    print(f"[네이버금융] 기사 #{i+1} 본문 수집 실패")
+                    results.append(f"- {title}")
+            else:
+                results.append(f"- {title}")
 
         print(f"[네이버금융] 최종 수집된 기사 수: {len(results)}")
-        return "\n".join(f"- {t}" for t in results)
+        return "\n".join(results)
     except Exception as e:
         print(f"[네이버금융] 예외 발생: {type(e).__name__}: {e}")
         return f"뉴스 수집 실패: {e}"

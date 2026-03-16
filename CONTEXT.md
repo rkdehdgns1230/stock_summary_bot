@@ -8,7 +8,7 @@ It collects:
 - CNN Fear & Greed index
 - U.S. market indicators
 - KOSPI200 futures data
-- Naver Finance news headlines
+- Naver Finance news headlines and article body text (top 5 articles)
 
 It then:
 - generates a Korean summary with Gemini
