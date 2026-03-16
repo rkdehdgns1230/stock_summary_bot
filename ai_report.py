@@ -106,6 +106,6 @@ def generate_report(today: str, score: int, fng_stage: str,
     persona_instruction = get_persona_instruction(score)
     prompt = build_prompt(today, persona_instruction, us_data, kospi_data, kosdaq_data, fng_stage, score, news_data)
     print("[Gemini] 리포트 생성 중...")
-    response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+    response = client.models.generate_content(model='gemini-3-flash-preview', contents=prompt)
     print("[Gemini] 리포트 생성 완료")
     return response.text
