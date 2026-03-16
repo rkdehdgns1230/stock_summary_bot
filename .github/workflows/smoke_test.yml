@@ -1,0 +1,32 @@
+name: Smoke Test (Single Recipient)
+
+# 수동 실행 전용 - 전체 파이프라인을 TEST_TELEGRAM_CHAT_ID 단일 수신자에게만 전송
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Korean fonts
+        run: |
+          sudo apt-get install -y fonts-nanum
+          rm -f ~/.cache/matplotlib/fontlist-*.json
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run smoke test (single recipient)
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TEST_TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py

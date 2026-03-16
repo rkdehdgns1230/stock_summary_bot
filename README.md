@@ -79,6 +79,25 @@ python main.py
 
 ---
 
+## 🧪 E2E 스모크 테스트
+
+실제 API 호출 및 텔레그램 발송을 포함한 전체 파이프라인을 **단일 수신자**에게만 테스트합니다.
+
+### 로컬 실행
+
+```bash
+TEST_TELEGRAM_CHAT_ID=your_chat_id python main.py
+```
+
+`TEST_TELEGRAM_CHAT_ID`가 설정되면 `TELEGRAM_CHAT_IDS`에 등록된 전체 수신자 대신 해당 ID에게만 발송됩니다.
+
+### GitHub Actions 수동 실행
+
+1. GitHub 저장소의 **Settings → Secrets → Actions**에 `TEST_TELEGRAM_CHAT_ID` 시크릿을 추가합니다.
+2. **Actions → Smoke Test (Single Recipient) → Run workflow**를 실행합니다.
+
+---
+
 ## 📦 의존성
 
 - [yfinance](https://github.com/ranaroussi/yfinance) — 미국 시장 데이터 수집

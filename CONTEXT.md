@@ -25,6 +25,21 @@ It then:
 - `config.py`: environment-variable loading and normalization
 - `.github/workflows/daily_report.yml`: scheduled GitHub Actions execution
 
+## Smoke test (E2E, single recipient)
+
+To run the full pipeline against real APIs but send only to a single Telegram chat:
+
+**Locally:**
+```bash
+TEST_TELEGRAM_CHAT_ID=your_chat_id python main.py
+```
+
+**GitHub Actions (manual):**
+1. Add `TEST_TELEGRAM_CHAT_ID` to repository secrets.
+2. Trigger the "Smoke Test (Single Recipient)" workflow manually from the Actions tab.
+
+When `TEST_TELEGRAM_CHAT_ID` is set, `config._get_effective_chat_ids()` returns only that single ID, overriding `TELEGRAM_CHAT_IDS` for the duration of the run.
+
 ## Runtime flow
 
 1. `main.py` gathers market, index, and news data.

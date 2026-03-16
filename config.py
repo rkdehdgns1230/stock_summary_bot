@@ -32,8 +32,20 @@ def _get_raw_chat_ids() -> str | None:
     return os.environ.get('TELEGRAM_CHAT_IDS') or os.environ.get('TELEGRAM_CHAT_ID')
 
 
+def _get_effective_chat_ids() -> list[str]:
+    """실제 사용할 채팅 ID 목록 반환.
+
+    TEST_TELEGRAM_CHAT_ID가 설정된 경우 해당 단일 ID만 반환하여
+    E2E 스모크 테스트 시 전체 수신자에게 발송되는 것을 방지한다.
+    """
+    test_id = os.environ.get('TEST_TELEGRAM_CHAT_ID', '').strip()
+    if test_id:
+        return [_normalize_chat_id(test_id)]
+    return _parse_chat_ids(_get_raw_chat_ids())
+
+
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_IDS = _parse_chat_ids(_get_raw_chat_ids())
+TELEGRAM_CHAT_IDS = _get_effective_chat_ids()
 CHAT_IDS = TELEGRAM_CHAT_IDS
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 

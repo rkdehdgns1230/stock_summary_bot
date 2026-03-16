@@ -41,5 +41,29 @@ class ParseChatIdsTest(unittest.TestCase):
             self.assertEqual(config._get_raw_chat_ids(), '123456789')
 
 
+class GetEffectiveChatIdsTest(unittest.TestCase):
+    def test_uses_test_id_when_set(self):
+        with mock.patch.dict(
+            os.environ,
+            {'TEST_TELEGRAM_CHAT_ID': '999888777', 'TELEGRAM_CHAT_IDS': '123456789,987654321'},
+            clear=False,
+        ):
+            self.assertEqual(config._get_effective_chat_ids(), ['999888777'])
+
+    def test_falls_back_to_chat_ids_when_test_id_not_set(self):
+        env = {'TELEGRAM_CHAT_IDS': '123456789,987654321'}
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop('TEST_TELEGRAM_CHAT_ID', None)
+            self.assertEqual(config._get_effective_chat_ids(), ['123456789', '987654321'])
+
+    def test_ignores_empty_test_id(self):
+        with mock.patch.dict(
+            os.environ,
+            {'TEST_TELEGRAM_CHAT_ID': '   ', 'TELEGRAM_CHAT_IDS': '123456789'},
+            clear=False,
+        ):
+            self.assertEqual(config._get_effective_chat_ids(), ['123456789'])
+
+
 if __name__ == '__main__':
     unittest.main()
