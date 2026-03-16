@@ -6,6 +6,29 @@ import config
 _BODY_FETCH_COUNT = 5   # 본문을 수집할 상위 기사 수
 _BODY_MAX_CHARS = 300   # 기사 본문 최대 수집 길이 (자)
 
+def fetch_commodities_and_dollar() -> str:
+    """원자재(WTI 원유, 금) 및 달러 인덱스(DXY) 수집"""
+    tickers = {
+        'WTI 원유': 'CL=F',
+        '금(Gold)': 'GC=F',
+        '달러 인덱스(DXY)': 'DX-Y.NYB',
+    }
+    results = []
+    for name, ticker in tickers.items():
+        try:
+            data = yf.Ticker(ticker).history(period='2d')
+            if len(data) >= 2:
+                close = data['Close'].iloc[-1]
+                prev_close = data['Close'].iloc[-2]
+                change_pct = ((close - prev_close) / prev_close) * 100
+                results.append(f'{name}: {close:.2f} ({change_pct:+.2f}%)')
+            else:
+                results.append(f'{name}: 데이터 부족 (rows={len(data)})')
+        except Exception as e:
+            results.append(f'{name}: 수집 실패 ({type(e).__name__})')
+    return '\n'.join(results)
+
+
 def fetch_us_market():
     tickers = {
         '나스닥': '^IXIC',

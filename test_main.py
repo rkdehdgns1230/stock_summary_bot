@@ -18,6 +18,7 @@ def _load_main_module():
     fake_market_data.get_fear_and_greed_score = mock.Mock()
     fake_market_data.get_fng_description = mock.Mock()
     fake_market_data.fetch_us_market = mock.Mock()
+    fake_market_data.fetch_commodities_and_dollar = mock.Mock()
     fake_market_data.fetch_kospi_futures = mock.Mock()
     fake_market_data.fetch_kosdaq_index = mock.Mock()
     fake_market_data.fetch_naver_finance_news = mock.Mock()
@@ -63,6 +64,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'get_fng_description', return_value='탐욕 (Greed)') as get_stage, \
              mock.patch.object(self.main.chart, 'generate_fear_greed_gauge_image', return_value=gauge_image) as make_gauge, \
              mock.patch.object(self.main.market_data, 'fetch_us_market', return_value='us data') as fetch_us, \
+             mock.patch.object(self.main.market_data, 'fetch_commodities_and_dollar', return_value='commodities data') as fetch_commodities, \
              mock.patch.object(self.main.market_data, 'fetch_kospi_futures', return_value='kospi data') as fetch_kospi, \
              mock.patch.object(self.main.market_data, 'fetch_kosdaq_index', return_value='kosdaq data') as fetch_kosdaq, \
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', return_value='news data') as fetch_news, \
@@ -77,6 +79,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         get_stage.assert_called_once_with(65)
         make_gauge.assert_called_once_with(65)
         fetch_us.assert_called_once_with()
+        fetch_commodities.assert_called_once_with()
         fetch_kospi.assert_called_once_with()
         fetch_kosdaq.assert_called_once_with()
         fetch_news.assert_called_once_with()
@@ -85,6 +88,7 @@ class SummarizeAndSendTest(unittest.TestCase):
             65,
             '탐욕 (Greed)',
             'us data',
+            'commodities data',
             'kospi data',
             'kosdaq data',
             'news data',
@@ -102,6 +106,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         get_stage = mock.Mock(return_value='공포 (Fear)')
         make_gauge = mock.Mock(return_value=gauge_image)
         fetch_us = mock.Mock(return_value='us data')
+        fetch_commodities = mock.Mock(return_value='commodities data')
         fetch_kospi = mock.Mock(return_value='kospi data')
         fetch_kosdaq = mock.Mock(return_value='kosdaq data')
         fetch_news = mock.Mock(return_value='news data')
@@ -114,6 +119,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         call_order.attach_mock(get_stage, 'get_stage')
         call_order.attach_mock(make_gauge, 'make_gauge')
         call_order.attach_mock(fetch_us, 'fetch_us')
+        call_order.attach_mock(fetch_commodities, 'fetch_commodities')
         call_order.attach_mock(fetch_kospi, 'fetch_kospi')
         call_order.attach_mock(fetch_kosdaq, 'fetch_kosdaq')
         call_order.attach_mock(fetch_news, 'fetch_news')
@@ -127,6 +133,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'get_fng_description', get_stage), \
              mock.patch.object(self.main.chart, 'generate_fear_greed_gauge_image', make_gauge), \
              mock.patch.object(self.main.market_data, 'fetch_us_market', fetch_us), \
+             mock.patch.object(self.main.market_data, 'fetch_commodities_and_dollar', fetch_commodities), \
              mock.patch.object(self.main.market_data, 'fetch_kospi_futures', fetch_kospi), \
              mock.patch.object(self.main.market_data, 'fetch_kosdaq_index', fetch_kosdaq), \
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', fetch_news), \
@@ -143,6 +150,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                 mock.call.get_stage(42),
                 mock.call.make_gauge(42),
                 mock.call.fetch_us(),
+                mock.call.fetch_commodities(),
                 mock.call.fetch_kospi(),
                 mock.call.fetch_kosdaq(),
                 mock.call.fetch_news(),
@@ -151,6 +159,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                     42,
                     '공포 (Fear)',
                     'us data',
+                    'commodities data',
                     'kospi data',
                     'kosdaq data',
                     'news data',
