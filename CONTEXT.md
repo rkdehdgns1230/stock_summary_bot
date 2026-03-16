@@ -25,6 +25,20 @@ It then:
 - `config.py`: environment-variable loading and normalization
 - `.github/workflows/daily_report.yml`: scheduled GitHub Actions execution
 
+## History storage
+
+The bot saves two files to the `history/` directory on every **scheduled** run.
+Smoke test runs (`TEST_TELEGRAM_CHAT_ID` set) skip history saving entirely.
+
+| File | Format | Content |
+|------|--------|---------|
+| `history/YYYY-MM-DD.json` | JSON | Full snapshot: F&G score/stage, all market data strings, news, raw AI report |
+| `history/fng_log.csv` | CSV | Running log: date, score, stage — one row per day |
+
+**Deduplication**: if the scheduled run is retried on the same date, the JSON is overwritten and the CSV row is updated in place (upsert). This prevents duplicate entries regardless of how many times the workflow is triggered.
+
+`daily_report.yml` auto-commits the updated files with the message `chore: daily history snapshot [skip ci]`. The `[skip ci]` tag prevents a re-trigger loop.
+
 ## Smoke test (E2E, single recipient)
 
 To run the full pipeline against real APIs but send only to a single Telegram chat:

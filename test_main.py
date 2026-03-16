@@ -8,6 +8,10 @@ from unittest import mock
 
 
 def _load_main_module():
+    fake_history_writer = types.ModuleType('history_writer')
+    fake_history_writer.save_daily_snapshot = mock.Mock()
+    fake_history_writer.upsert_fng_log = mock.Mock()
+
     fake_ai_report = types.ModuleType('ai_report')
     fake_ai_report.generate_report = mock.Mock()
 
@@ -38,6 +42,7 @@ def _load_main_module():
             {
                 'ai_report': fake_ai_report,
                 'chart': fake_chart,
+                'history_writer': fake_history_writer,
                 'market_data': fake_market_data,
                 'telegram_sender': fake_telegram_sender,
             },
