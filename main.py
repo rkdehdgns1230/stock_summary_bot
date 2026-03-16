@@ -2,7 +2,6 @@ from datetime import datetime, timezone, timedelta
 
 import ai_report
 import chart
-import config
 import history_writer
 import market_data
 import telegram_sender
@@ -35,9 +34,8 @@ def summarize_and_send():
 
     raw_report = ai_report.generate_report(today, score, fng_stage, us_data, commodities_data, kospi_data, kosdaq_data, news_data)
 
-    if not config.IS_TEST_RUN:
-        history_writer.save_daily_snapshot(date_str, score, fng_stage, us_data, commodities_data, kospi_data, kosdaq_data, news_data, raw_report)
-        history_writer.upsert_fng_log(date_str, score, fng_stage)
+    history_writer.save_daily_snapshot(date_str, score, fng_stage, us_data, commodities_data, kospi_data, kosdaq_data, news_data, raw_report)
+    history_writer.upsert_fng_log(date_str, score, fng_stage)
 
     report = telegram_sender.sanitize_for_telegram_mdv2(raw_report)
 

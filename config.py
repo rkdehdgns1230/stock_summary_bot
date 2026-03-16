@@ -47,7 +47,6 @@ def _get_effective_chat_ids() -> list[str]:
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_IDS = _get_effective_chat_ids()
 CHAT_IDS = TELEGRAM_CHAT_IDS
-IS_TEST_RUN = bool(os.environ.get('TEST_TELEGRAM_CHAT_ID', '').strip())
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 RATING_KO = {
