@@ -1,5 +1,7 @@
 # Project Context
 
+> 관련 문서: [`CHANGELOG.md`](./CHANGELOG.md) — 변경 이력 | [`WORKFLOW.md`](./WORKFLOW.md) — 개발·배포 절차
+
 ## What this project does
 
 This repository runs a daily stock-market summary bot.
