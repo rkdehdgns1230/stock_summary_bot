@@ -110,6 +110,9 @@ def format_forecast_record(record: dict) -> str:
         f"{record['hits']}승 {record['partials']}무 {record['misses']}패"
         f" \\(총 {total}회\\)"
     )
+
+
+def load_yesterday_snapshot(today_str: str) -> dict | None:
     """어제 날짜의 스냅샷 JSON을 로드하여 반환. 파일이 없으면 None 반환.
 
     Args:
