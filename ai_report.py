@@ -248,8 +248,18 @@ _STRUCTURED_SCHEMA = types.Schema(
             enum=['극도의 공포', '공포', '중립', '탐욕', '극도의 탐욕'],
             description='공포·탐욕 지수 해석',
         ),
+        'forecast_result': types.Schema(
+            type=types.Type.STRING,
+            enum=['hit', 'partial', 'miss', 'no_data'],
+            description=(
+                '어제 전망의 적중 여부. '
+                '"📊 어제 전망 vs 오늘 결과" 섹션이 있으면 판정 결과를 추출한다: '
+                '✅ 적중 → hit, ⚠️ 부분 적중 → partial, ❌ 빗나감 → miss. '
+                '해당 섹션이 없으면 → no_data.'
+            ),
+        ),
     },
-    required=['market_direction', 'confidence', 'key_risks', 'sector_focus', 'fng_interpretation'],
+    required=['market_direction', 'confidence', 'key_risks', 'sector_focus', 'fng_interpretation', 'forecast_result'],
 )
 
 
@@ -262,6 +272,12 @@ def extract_structured_metadata(report_text: str) -> dict:
     """
     prompt = f"""다음은 오늘의 한국 증시 모닝 브리핑 리포트다.
 이 리포트를 읽고 아래 항목을 추출하라.
+
+리포트에 "📊 어제 전망 vs 오늘 결과" 섹션이 있으면 그 판정을 forecast_result에 기록하라:
+- ✅ 적중 → hit
+- ⚠️ 부분 적중 → partial
+- ❌ 빗나감 → miss
+- 해당 섹션이 없으면 → no_data
 
 리포트:
 {report_text}

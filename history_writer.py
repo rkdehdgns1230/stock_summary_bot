@@ -73,7 +73,43 @@ def upsert_fng_log(date_str: str, fng_score: int, fng_stage: str) -> None:
     print(f'[히스토리] FNG 로그 {action}: {date_str} (score={fng_score}, stage={fng_stage})')
 
 
-def load_yesterday_snapshot(today_str: str) -> dict | None:
+def compute_forecast_record() -> dict:
+    """히스토리 전체에서 AI 예측 전적(승/무/패) 집계.
+
+    각 날짜 스냅샷의 structured.forecast_result 값을 읽어 집계한다.
+    forecast_result가 'no_data'이거나 없는 날은 집계에서 제외한다.
+    파일 읽기 오류는 건너뛰고 계속 집계한다.
+    """
+    hits, partials, misses = 0, 0, 0
+    for json_file in sorted(HISTORY_DIR.glob('*.json')):
+        try:
+            data = json.loads(json_file.read_text(encoding='utf-8'))
+            result = data.get('structured', {}).get('forecast_result', 'no_data')
+            if result == 'hit':
+                hits += 1
+            elif result == 'partial':
+                partials += 1
+            elif result == 'miss':
+                misses += 1
+        except Exception:
+            continue
+    return {'hits': hits, 'partials': partials, 'misses': misses}
+
+
+def format_forecast_record(record: dict) -> str:
+    """전적 dict를 Telegram MarkdownV2 호환 헤더 문자열로 변환.
+
+    전적이 없으면(총 0회) 빈 문자열 반환.
+    MarkdownV2 특수문자 ( ) 는 이스케이프 처리하여 직접 사용 가능.
+    """
+    total = record['hits'] + record['partials'] + record['misses']
+    if total == 0:
+        return ''
+    return (
+        f"📊 AI 예측 전적: "
+        f"{record['hits']}승 {record['partials']}무 {record['misses']}패"
+        f" \\(총 {total}회\\)"
+    )
     """어제 날짜의 스냅샷 JSON을 로드하여 반환. 파일이 없으면 None 반환.
 
     Args:

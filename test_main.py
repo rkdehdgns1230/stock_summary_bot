@@ -12,6 +12,10 @@ def _load_main_module():
     fake_history_writer.save_daily_snapshot = mock.Mock()
     fake_history_writer.upsert_fng_log = mock.Mock()
     fake_history_writer.load_yesterday_snapshot = mock.Mock(return_value=None)
+    fake_history_writer.compute_forecast_record = mock.Mock(
+        return_value={'hits': 0, 'partials': 0, 'misses': 0}
+    )
+    fake_history_writer.format_forecast_record = mock.Mock(return_value='')
 
     fake_ai_report = types.ModuleType('ai_report')
     fake_ai_report.generate_report = mock.Mock()
@@ -131,6 +135,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         load_yesterday = mock.Mock(return_value=None)
         generate_report = mock.Mock(return_value='raw report')
         extract_structured = mock.Mock(return_value={})
+        compute_forecast_record = mock.Mock(return_value={'hits': 0, 'partials': 0, 'misses': 0})
         sanitize_report = mock.Mock(return_value='sanitized report')
         send_gauge_image = mock.Mock()
         send_report = mock.Mock()
@@ -147,6 +152,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         call_order.attach_mock(load_yesterday, 'load_yesterday')
         call_order.attach_mock(generate_report, 'generate_report')
         call_order.attach_mock(extract_structured, 'extract_structured')
+        call_order.attach_mock(compute_forecast_record, 'compute_forecast_record')
         call_order.attach_mock(sanitize_report, 'sanitize_report')
         call_order.attach_mock(send_gauge_image, 'send_gauge_image')
         call_order.attach_mock(send_report, 'send_report')
@@ -164,6 +170,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.history_writer, 'load_yesterday_snapshot', load_yesterday), \
              mock.patch.object(self.main.ai_report, 'generate_report', generate_report), \
              mock.patch.object(self.main.ai_report, 'extract_structured_metadata', extract_structured), \
+             mock.patch.object(self.main.history_writer, 'compute_forecast_record', compute_forecast_record), \
              mock.patch.object(self.main.telegram_sender, 'sanitize_for_telegram_mdv2', sanitize_report), \
              mock.patch.object(self.main.telegram_sender, 'send_gauge_image', send_gauge_image), \
              mock.patch.object(self.main.telegram_sender, 'send_report', send_report):
@@ -196,6 +203,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                     yesterday_structured={},
                 ),
                 mock.call.extract_structured('raw report'),
+                mock.call.compute_forecast_record(),
                 mock.call.sanitize_report('raw report'),
                 mock.call.send_gauge_image(gauge_image),
                 mock.call.send_report('sanitized report'),

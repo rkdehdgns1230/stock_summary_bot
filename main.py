@@ -57,7 +57,12 @@ def summarize_and_send():
     )
     history_writer.upsert_fng_log(date_str, score, fng_stage)
 
+    record = history_writer.compute_forecast_record()
+    record_header = history_writer.format_forecast_record(record)
+
     report = telegram_sender.sanitize_for_telegram_mdv2(raw_report)
+    if record_header:
+        report = record_header + '\n\n' + report
 
     telegram_sender.send_gauge_image(gauge_image)
     telegram_sender.send_report(report)
