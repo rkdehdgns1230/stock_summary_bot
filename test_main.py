@@ -107,6 +107,7 @@ class SummarizeAndSendTest(unittest.TestCase):
             'news data',
             vix_data='vix data',
             yesterday_report='',
+            yesterday_structured={},
         )
         extract_structured.assert_called_once_with('raw report')
 
@@ -192,6 +193,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                     'news data',
                     vix_data='vix data',
                     yesterday_report='',
+                    yesterday_structured={},
                 ),
                 mock.call.extract_structured('raw report'),
                 mock.call.sanitize_report('raw report'),

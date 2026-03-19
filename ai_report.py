@@ -88,14 +88,43 @@ def build_user_content(today: str, us_data: str, commodities_data: str,
                        kospi_data: str, kosdaq_data: str,
                        fng_stage: str, score: int, news_data: str,
                        vix_data: str = '',
-                       yesterday_report: str = '') -> str:
+                       yesterday_report: str = '',
+                       yesterday_structured: dict | None = None) -> str:
     """오늘의 시장 데이터와 리포트 작성 요청"""
     yesterday_section = ''
-    if yesterday_report:
-        yesterday_section = f"""
-7. 어제 AI 전망 리포트 (참고용 — 오늘 결과와 비교하여 📊 섹션 작성에 활용):
+    if yesterday_report or yesterday_structured:
+        structured_summary = ''
+        if yesterday_structured:
+            direction_label = {
+                'bullish': '상승 (Bullish)',
+                'bearish': '하락 (Bearish)',
+                'neutral': '중립 (Neutral)',
+            }.get(yesterday_structured.get('market_direction', ''), '알 수 없음')
+            confidence_label = {
+                'high': '높음', 'medium': '보통', 'low': '낮음',
+            }.get(yesterday_structured.get('confidence', ''), '알 수 없음')
+            key_risks = ', '.join(yesterday_structured.get('key_risks', [])) or '없음'
+            sector_focus = ', '.join(yesterday_structured.get('sector_focus', [])) or '없음'
+            fng_interp = yesterday_structured.get('fng_interpretation', '알 수 없음')
+            structured_summary = f"""
+[어제 AI 전망 요약 — 구조화 데이터]
+- 전망 방향: {direction_label}
+- 확신도: {confidence_label}
+- 핵심 리스크로 지목했던 변수: {key_risks}
+- 주목했던 섹터: {sector_focus}
+- F&G 해석: {fng_interp}
+"""
+
+        full_report_section = ''
+        if yesterday_report:
+            full_report_section = f"""
+[어제 AI 전망 리포트 전문 — 상세 근거 확인용]
 {yesterday_report}
 """
+
+        yesterday_section = f"""
+7. 어제 전망 데이터 (오늘 결과와 비교하여 📊 섹션 작성에 활용):
+{structured_summary}{full_report_section}"""
 
     vix_line = f'\n{vix_data}' if vix_data else ''
 
@@ -132,13 +161,15 @@ def generate_report(today: str, score: int, fng_stage: str,
                     us_data: str, commodities_data: str,
                     kospi_data: str, kosdaq_data: str, news_data: str,
                     vix_data: str = '',
-                    yesterday_report: str = '') -> str:
+                    yesterday_report: str = '',
+                    yesterday_structured: dict | None = None) -> str:
     """Gemini API를 호출하여 모닝 브리핑 리포트 텍스트 반환 (Google Search Grounding 활성화)"""
     system_instruction = build_system_instruction()
     user_content = build_user_content(today, us_data, commodities_data,
                                       kospi_data, kosdaq_data, fng_stage, score, news_data,
                                       vix_data=vix_data,
-                                      yesterday_report=yesterday_report)
+                                      yesterday_report=yesterday_report,
+                                      yesterday_structured=yesterday_structured)
     print("[Gemini] 리포트 생성 중 (Google Search Grounding 활성화)...")
     response = client.models.generate_content(
         model='gemini-2.5-flash',
