@@ -1,7 +1,10 @@
 name: Smoke Test (Single Recipient)
 
-# 수동 실행 전용 - 전체 파이프라인을 TEST_TELEGRAM_CHAT_ID 단일 수신자에게만 전송
+# main 브랜치 push 시 자동 실행 + 수동 실행 모두 지원
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
