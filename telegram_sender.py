@@ -27,7 +27,7 @@ def sanitize_for_telegram_mdv2(text: str) -> str:
     # 2. 인라인 포맷팅 스팬 보호 (긴 구분자 우선 매칭)
     INLINE_RE = re.compile(
         r'__[^_\n]+?__'      # __underline__
-        r'|\*[^*\n]+?\*'     # *bold*
+        r'|\*\*[^*\n]+?\*\*' # **bold** → MarkdownV2 *bold*
         r'|_[^_\n]+?_'       # _italic_
         r'|~~[^\n]+?~~'      # ~~strikethrough~~
         r'|\|\|[^\n]+?\|\|'  # ||spoiler||
@@ -45,8 +45,9 @@ def sanitize_for_telegram_mdv2(text: str) -> str:
         if span.startswith('||'):
             inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
             return protect('||' + inner + '||')
-        if span.startswith('*'):
-            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
+        if span.startswith('**'):
+            # **bold** → MarkdownV2 *bold*
+            inner = INNER_ESCAPE_RE.sub(r'\\\1', span[2:-2])
             return protect('*' + inner + '*')
         if span.startswith('_'):
             inner = INNER_ESCAPE_RE.sub(r'\\\1', span[1:-1])
