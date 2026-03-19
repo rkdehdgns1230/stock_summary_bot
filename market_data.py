@@ -6,6 +6,20 @@ import config
 _BODY_FETCH_COUNT = 5   # 본문을 수집할 상위 기사 수
 _BODY_MAX_CHARS = 300   # 기사 본문 최대 수집 길이 (자)
 
+def fetch_vix() -> str:
+    """VIX(변동성 지수) 수집 (yfinance)"""
+    try:
+        data = yf.Ticker('^VIX').history(period='2d')
+        if len(data) >= 2:
+            close = data['Close'].iloc[-1]
+            prev_close = data['Close'].iloc[-2]
+            change_pct = ((close - prev_close) / prev_close) * 100
+            return f'VIX(변동성): {close:.2f} ({change_pct:+.2f}%)'
+        return 'VIX(변동성): 데이터 부족'
+    except Exception as e:
+        return f'VIX(변동성): 수집 실패 ({type(e).__name__})'
+
+
 def fetch_commodities_and_dollar() -> str:
     """원자재(WTI 원유, 금) 및 달러 인덱스(DXY) 수집"""
     tickers = {

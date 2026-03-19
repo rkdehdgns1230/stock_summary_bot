@@ -1,5 +1,6 @@
 import csv
 import json
+from datetime import date, timedelta
 from pathlib import Path
 
 HISTORY_DIR = Path(__file__).parent / 'history'
@@ -12,7 +13,8 @@ def _ensure_dir() -> None:
 def save_daily_snapshot(date_str: str, fng_score: int, fng_stage: str,
                         us_data: str, commodities_data: str,
                         kospi_data: str, kosdaq_data: str,
-                        news_data: str, report: str) -> None:
+                        news_data: str, report: str,
+                        vix_data: str = '') -> None:
     """날짜별 JSON 스냅샷 저장.
 
     같은 날짜에 여러 번 실행되더라도 항상 최신 값으로 덮어씀.
@@ -25,6 +27,7 @@ def save_daily_snapshot(date_str: str, fng_score: int, fng_stage: str,
         'fng_stage': fng_stage,
         'market': {
             'us': us_data,
+            'vix': vix_data,
             'commodities': commodities_data,
             'kospi': kospi_data,
             'kosdaq': kosdaq_data,
@@ -66,3 +69,24 @@ def upsert_fng_log(date_str: str, fng_score: int, fng_stage: str) -> None:
 
     action = '갱신' if updated else '추가'
     print(f'[히스토리] FNG 로그 {action}: {date_str} (score={fng_score}, stage={fng_stage})')
+
+
+def load_yesterday_snapshot(today_str: str) -> dict | None:
+    """어제 날짜의 스냅샷 JSON을 로드하여 반환. 파일이 없으면 None 반환.
+
+    Args:
+        today_str: 오늘 날짜 문자열 (YYYY-MM-DD 형식)
+    """
+    try:
+        today = date.fromisoformat(today_str)
+        yesterday_str = (today - timedelta(days=1)).isoformat()
+        path = HISTORY_DIR / f'{yesterday_str}.json'
+        if not path.exists():
+            print(f'[히스토리] 어제 스냅샷 없음: {path.name}')
+            return None
+        snapshot = json.loads(path.read_text(encoding='utf-8'))
+        print(f'[히스토리] 어제 스냅샷 로드 완료: {path.name}')
+        return snapshot
+    except Exception as e:
+        print(f'[히스토리] 어제 스냅샷 로드 실패: {type(e).__name__}: {e}')
+        return None

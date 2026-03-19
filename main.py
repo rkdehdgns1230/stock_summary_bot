@@ -20,6 +20,9 @@ def summarize_and_send():
     us_data = market_data.fetch_us_market()
     print("[데이터 수집] 미국 시장 지표:\n", us_data)
 
+    vix_data = market_data.fetch_vix()
+    print("[데이터 수집] VIX 변동성 지수:\n", vix_data)
+
     commodities_data = market_data.fetch_commodities_and_dollar()
     print("[데이터 수집] 원자재 및 달러 지수:\n", commodities_data)
 
@@ -32,9 +35,21 @@ def summarize_and_send():
     news_data = market_data.fetch_naver_finance_news()
     print("[데이터 수집] 네이버 금융 뉴스:\n", news_data[:300], "...")
 
-    raw_report = ai_report.generate_report(today, score, fng_stage, us_data, commodities_data, kospi_data, kosdaq_data, news_data)
+    yesterday_snapshot = history_writer.load_yesterday_snapshot(date_str)
+    yesterday_report = yesterday_snapshot.get('report', '') if yesterday_snapshot else ''
 
-    history_writer.save_daily_snapshot(date_str, score, fng_stage, us_data, commodities_data, kospi_data, kosdaq_data, news_data, raw_report)
+    raw_report = ai_report.generate_report(
+        today, score, fng_stage, us_data, commodities_data,
+        kospi_data, kosdaq_data, news_data,
+        vix_data=vix_data,
+        yesterday_report=yesterday_report,
+    )
+
+    history_writer.save_daily_snapshot(
+        date_str, score, fng_stage, us_data, commodities_data,
+        kospi_data, kosdaq_data, news_data, raw_report,
+        vix_data=vix_data,
+    )
     history_writer.upsert_fng_log(date_str, score, fng_stage)
 
     report = telegram_sender.sanitize_for_telegram_mdv2(raw_report)
