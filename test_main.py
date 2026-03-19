@@ -15,6 +15,7 @@ def _load_main_module():
 
     fake_ai_report = types.ModuleType('ai_report')
     fake_ai_report.generate_report = mock.Mock()
+    fake_ai_report.extract_structured_metadata = mock.Mock(return_value={})
 
     fake_chart = types.ModuleType('chart')
     fake_chart.generate_fear_greed_gauge_image = mock.Mock()
@@ -78,6 +79,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', return_value='news data') as fetch_news, \
              mock.patch.object(self.main.history_writer, 'load_yesterday_snapshot', return_value=None) as load_yesterday, \
              mock.patch.object(self.main.ai_report, 'generate_report', return_value='raw report') as generate_report, \
+             mock.patch.object(self.main.ai_report, 'extract_structured_metadata', return_value={}) as extract_structured, \
              mock.patch.object(self.main.telegram_sender, 'sanitize_for_telegram_mdv2', return_value='sanitized report'), \
              mock.patch.object(self.main.telegram_sender, 'send_gauge_image'), \
              mock.patch.object(self.main.telegram_sender, 'send_report'):
@@ -106,6 +108,7 @@ class SummarizeAndSendTest(unittest.TestCase):
             vix_data='vix data',
             yesterday_report='',
         )
+        extract_structured.assert_called_once_with('raw report')
 
     def test_summarize_and_send_sanitizes_report_before_sending(self):
         fixed_now = datetime(2026, 3, 14, 7, 36, 19, tzinfo=timezone.utc)
@@ -126,6 +129,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         fetch_news = mock.Mock(return_value='news data')
         load_yesterday = mock.Mock(return_value=None)
         generate_report = mock.Mock(return_value='raw report')
+        extract_structured = mock.Mock(return_value={})
         sanitize_report = mock.Mock(return_value='sanitized report')
         send_gauge_image = mock.Mock()
         send_report = mock.Mock()
@@ -141,6 +145,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         call_order.attach_mock(fetch_news, 'fetch_news')
         call_order.attach_mock(load_yesterday, 'load_yesterday')
         call_order.attach_mock(generate_report, 'generate_report')
+        call_order.attach_mock(extract_structured, 'extract_structured')
         call_order.attach_mock(sanitize_report, 'sanitize_report')
         call_order.attach_mock(send_gauge_image, 'send_gauge_image')
         call_order.attach_mock(send_report, 'send_report')
@@ -157,6 +162,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', fetch_news), \
              mock.patch.object(self.main.history_writer, 'load_yesterday_snapshot', load_yesterday), \
              mock.patch.object(self.main.ai_report, 'generate_report', generate_report), \
+             mock.patch.object(self.main.ai_report, 'extract_structured_metadata', extract_structured), \
              mock.patch.object(self.main.telegram_sender, 'sanitize_for_telegram_mdv2', sanitize_report), \
              mock.patch.object(self.main.telegram_sender, 'send_gauge_image', send_gauge_image), \
              mock.patch.object(self.main.telegram_sender, 'send_report', send_report):
@@ -187,6 +193,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                     vix_data='vix data',
                     yesterday_report='',
                 ),
+                mock.call.extract_structured('raw report'),
                 mock.call.sanitize_report('raw report'),
                 mock.call.send_gauge_image(gauge_image),
                 mock.call.send_report('sanitized report'),

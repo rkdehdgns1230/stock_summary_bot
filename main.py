@@ -45,10 +45,13 @@ def summarize_and_send():
         yesterday_report=yesterday_report,
     )
 
+    structured = ai_report.extract_structured_metadata(raw_report)
+
     history_writer.save_daily_snapshot(
         date_str, score, fng_stage, us_data, commodities_data,
         kospi_data, kosdaq_data, news_data, raw_report,
         vix_data=vix_data,
+        structured=structured,
     )
     history_writer.upsert_fng_log(date_str, score, fng_stage)
 

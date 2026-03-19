@@ -14,7 +14,8 @@ def save_daily_snapshot(date_str: str, fng_score: int, fng_stage: str,
                         us_data: str, commodities_data: str,
                         kospi_data: str, kosdaq_data: str,
                         news_data: str, report: str,
-                        vix_data: str = '') -> None:
+                        vix_data: str = '',
+                        structured: dict | None = None) -> None:
     """날짜별 JSON 스냅샷 저장.
 
     같은 날짜에 여러 번 실행되더라도 항상 최신 값으로 덮어씀.
@@ -34,6 +35,7 @@ def save_daily_snapshot(date_str: str, fng_score: int, fng_stage: str,
         },
         'news': news_data,
         'report': report,
+        'structured': structured or {},
     }
     path = HISTORY_DIR / f'{date_str}.json'
     path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8')
