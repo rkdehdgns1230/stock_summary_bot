@@ -72,6 +72,40 @@ def sanitize_for_telegram_mdv2(text: str) -> str:
     return text
 
 
+_SECTION_DIVIDER = '\n━━━━━━━━━━\n'
+
+
+def split_message(text: str, limit: int = 4096) -> list[str]:
+    """━━━━━━━━━━ 섹션 구분선 기준으로 메시지를 분할.
+
+    sections를 limit 이내로 그리디하게 묶어 반환한다.
+    섹션 하나가 단독으로 limit을 초과하는 경우에도 그대로 청크로 emit한다.
+    """
+    sections = [s for s in text.split(_SECTION_DIVIDER) if s.strip()]
+    if not sections:
+        return [text]
+
+    chunks = []
+    current_parts: list[str] = []
+    current_len = 0
+
+    for section in sections:
+        join_cost = len(_SECTION_DIVIDER) if current_parts else 0
+        needed = join_cost + len(section)
+        if current_parts and current_len + needed > limit:
+            chunks.append(_SECTION_DIVIDER.join(current_parts))
+            current_parts = [section]
+            current_len = len(section)
+        else:
+            current_parts.append(section)
+            current_len += needed
+
+    if current_parts:
+        chunks.append(_SECTION_DIVIDER.join(current_parts))
+
+    return chunks
+
+
 def send_gauge_image(gauge_image) -> None:
     """공포·탐욕 지수 게이지 이미지를 텔레그램으로 전송"""
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendPhoto"
@@ -89,17 +123,20 @@ def send_gauge_image(gauge_image) -> None:
 
 
 def send_report(report: str) -> None:
-    """리포트 텍스트를 MarkdownV2로 전송, 실패 시 plain text로 재시도"""
+    """리포트를 MarkdownV2로 전송. 4096자 초과 시 섹션 구분선 기준으로 분할 전송."""
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
-    print("[텔레그램] 메시지 전송 중...")
+    chunks = split_message(report)
+    print(f"[텔레그램] 메시지 {len(chunks)}개 청크로 전송 중...")
 
     for chat_id in config.TELEGRAM_CHAT_IDS:
-        response = requests.post(url, data={"chat_id": chat_id, "text": report, "parse_mode": "MarkdownV2"})
-        print(f"[텔레그램] 응답 코드: {response.status_code}")
-        print(f"[텔레그램] 응답 본문: {response.text}")
+        for i, chunk in enumerate(chunks, 1):
+            print(f"[텔레그램] 청크 {i}/{len(chunks)} 전송 중... (chat_id={chat_id}, {len(chunk)}자)")
+            response = requests.post(url, data={"chat_id": chat_id, "text": chunk, "parse_mode": "MarkdownV2"})
+            print(f"[텔레그램] 응답 코드: {response.status_code}")
+            print(f"[텔레그램] 응답 본문: {response.text}")
 
-        if not response.json().get("ok") and response.status_code == 400:
-            print("[텔레그램] MarkdownV2 파싱 오류 감지 → plain text로 재시도")
-            response = requests.post(url, data={"chat_id": chat_id, "text": report})
-            print(f"[텔레그램] 재시도 응답 코드: {response.status_code}")
-            print(f"[텔레그램] 재시도 응답 본문: {response.text}")
+            if not response.json().get("ok") and response.status_code == 400:
+                print(f"[텔레그램] MarkdownV2 파싱 오류 감지 → plain text로 재시도")
+                response = requests.post(url, data={"chat_id": chat_id, "text": chunk})
+                print(f"[텔레그램] 재시도 응답 코드: {response.status_code}")
+                print(f"[텔레그램] 재시도 응답 본문: {response.text}")
