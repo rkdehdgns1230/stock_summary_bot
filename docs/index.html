@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>국장 모닝 브리핑 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#e3b341;--orange:#d18616;
+  --fear-ext:rgba(248,81,73,0.15);--fear:rgba(210,99,34,0.12);
+  --neutral:rgba(227,179,65,0.12);--greed:rgba(63,185,80,0.12);--greed-ext:rgba(23,174,89,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--blue);text-decoration:none}
+
+/* layout */
+header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;font-weight:600}
+header .sub{color:var(--muted);font-size:12px;margin-left:auto}
+main{max-width:1200px;margin:0 auto;padding:24px 16px;display:grid;gap:24px}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.card-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px}
+
+/* stats row */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat .value{font-size:26px;font-weight:700;margin-top:4px}
+.stat .hint{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* tabs */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.tab{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.tab:hover{border-color:var(--blue);color:var(--blue)}
+.tab.active{background:var(--blue);border-color:var(--blue);color:#000;font-weight:600}
+
+/* forecast timeline */
+.timeline{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
+.tl-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:background .1s}
+.tl-item:hover{background:rgba(255,255,255,.04)}
+.tl-item.selected{background:rgba(88,166,255,.08);border-color:var(--blue)}
+.tl-date{font-size:12px;color:var(--muted);width:80px;flex-shrink:0}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.badge-bullish{background:rgba(63,185,80,.2);color:var(--green)}
+.badge-bearish{background:rgba(248,81,73,.2);color:var(--red)}
+.badge-neutral{background:rgba(227,179,65,.2);color:var(--yellow)}
+.badge-hit{background:rgba(63,185,80,.25);color:var(--green)}
+.badge-miss{background:rgba(248,81,73,.25);color:var(--red)}
+.badge-partial{background:rgba(209,134,22,.25);color:var(--orange)}
+.badge-na{background:rgba(139,148,158,.15);color:var(--muted)}
+.tl-risks{font-size:11px;color:var(--muted);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* report viewer */
+.report-layout{display:grid;grid-template-columns:200px 1fr;gap:0;height:500px}
+.report-list{border-right:1px solid var(--border);overflow-y:auto}
+.report-list-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--muted);transition:background .1s}
+.report-list-item:hover{background:rgba(255,255,255,.04)}
+.report-list-item.selected{background:rgba(88,166,255,.08);color:var(--blue);font-weight:600}
+.report-content{padding:20px;overflow-y:auto;font-size:13px;line-height:1.8}
+.report-content h3{font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.report-content h3:first-child{margin-top:0}
+.report-content blockquote{border-left:3px solid var(--blue);padding-left:12px;color:var(--muted);margin:8px 0}
+.report-content pre{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:'SFMono-Regular',monospace;font-size:12px;overflow-x:auto;white-space:pre;margin:8px 0}
+.report-content code{background:#0d1117;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:'SFMono-Regular',monospace;font-size:12px}
+.report-content strong{color:#fff;font-weight:600}
+.report-content hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+.report-content ul,
+.report-content ol{padding-left:20px;margin:6px 0}
+.report-content li{margin:2px 0}
+.report-content .spoiler{background:var(--border);color:var(--border);border-radius:3px;padding:0 4px;cursor:pointer;transition:color .2s}
+.report-content .spoiler:hover{color:var(--text)}
+.report-empty{color:var(--muted);font-style:italic;padding:20px}
+
+/* forecast grid */
+.forecast-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start}
+@media(max-width:700px){
+  .forecast-grid{grid-template-columns:1fr}
+  .report-layout{grid-template-columns:1fr;height:auto}
+  .report-list{height:140px;border-right:none;border-bottom:1px solid var(--border)}
+  .report-content{height:400px}
+}
+.chart-wrap{position:relative}
+canvas{width:100%!important}
+
+/* accuracy stat */
+.acc-stats{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.acc-item{display:flex;align-items:center;gap:6px;font-size:12px}
+.acc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:20px">📈</span>
+  <h1>국장 모닝 브리핑 대시보드</h1>
+  <span class="sub" id="updated">불러오는 중...</span>
+</header>
+
+<main>
+  <!-- 요약 스탯 -->
+  <div class="stats" id="stats"></div>
+
+  <!-- F&G 트렌드 -->
+  <div class="card">
+    <div class="card-title">공포·탐욕 지수 (Fear &amp; Greed) 트렌드</div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="fngChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 마켓 지표 -->
+  <div class="card">
+    <div class="card-title">주요 시장 지표</div>
+    <div class="tabs" id="marketTabs"></div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="marketChart"></canvas>
+    </div>
+  </div>
+
+  <!-- AI 예측 정확도 -->
+  <div class="card">
+    <div class="card-title">AI 예측 이력</div>
+    <div class="forecast-grid">
+      <div>
+        <div style="height:200px"><canvas id="accChart"></canvas></div>
+        <div class="acc-stats" id="accStats"></div>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- 리포트 뷰어 -->
+  <div class="card">
+    <div class="card-title">일별 리포트</div>
+    <div class="report-layout">
+      <div class="report-list" id="reportList"></div>
+      <div class="report-content" id="reportContent">
+        <span class="report-empty">날짜를 선택하면 리포트가 표시됩니다.</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────────
+const fmtDate = d => d.slice(5); // MM-DD
+const fmtDateFull = d => d;
+
+function fngColor(score){
+  if(score<=25) return '#f85149';
+  if(score<=45) return '#d18616';
+  if(score<=55) return '#e3b341';
+  if(score<=75) return '#3fb950';
+  return '#23d160';
+}
+function fngLabel(score){
+  if(score<=25) return '극도의 공포';
+  if(score<=45) return '공포';
+  if(score<=55) return '중립';
+  if(score<=75) return '탐욕';
+  return '극도의 탐욕';
+}
+
+function dirBadge(dir){
+  const map={bullish:['상승','badge-bullish'],bearish:['하락','badge-bearish'],neutral:['중립','badge-neutral']};
+  const [label,cls]=map[dir]||['?','badge-na'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+function resultBadge(r){
+  const map={hit:['적중','badge-hit'],miss:['미적중','badge-miss'],partial:['부분적중','badge-partial']};
+  const [label,cls]=map[r]||['N/A','badge-na'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// Simple markdown-ish → HTML (Telegram MarkdownV2 subset)
+function renderReport(text){
+  if(!text) return '<span class="report-empty">리포트 없음</span>';
+  let html = text
+    // section dividers
+    .replace(/━+/g, '<hr/>')
+    // code block
+    .replace(/```([\s\S]*?)```/g, (_, c) => `<pre>${esc(c.trim())}</pre>`)
+    // inline code
+    .replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`)
+    // spoiler
+    .replace(/\|\|(.+?)\|\|/g, (_, c) => `<span class="spoiler">${c}</span>`)
+    // section headers __text__
+    .replace(/__([^_]+)__/g, (_, c) => `<h3>${c}</h3>`)
+    // bold **text**
+    .replace(/\*\*([^*]+)\*\*/g, (_, c) => `<strong>${c}</strong>`)
+    // italic *text* (only when surrounded by spaces or start/end)
+    .replace(/(?<![*])\*(?!\*)([^*]+)\*(?!\*)/g, (_, c) => `<em>${c}</em>`);
+
+  // Process lines
+  const lines = html.split('\n');
+  const out = [];
+  for(const raw of lines){
+    const line = raw.trimEnd();
+    if(!line) { out.push(''); continue; }
+    if(line.startsWith('>'))   { out.push(`<blockquote>${line.slice(1).trim()}</blockquote>`); continue; }
+    if(line.startsWith('- '))  { out.push(`<li>${line.slice(2)}</li>`); continue; }
+    if(line.startsWith('* '))  { out.push(`<li>${line.slice(2)}</li>`); continue; }
+    if(line.match(/^\d+\.\s/)) { out.push(`<li>${line.replace(/^\d+\.\s/,'')}</li>`); continue; }
+    out.push(line);
+  }
+  // wrap consecutive <li> in <ul>
+  return out.join('\n')
+    .replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`);
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── charts ────────────────────────────────────────────────────────────────────
+let marketChartInst = null;
+
+function buildFngChart(fngHistory){
+  const labels = fngHistory.map(r => fmtDate(r.date));
+  const scores = fngHistory.map(r => r.score);
+  const colors = scores.map(fngColor);
+
+  new Chart(document.getElementById('fngChart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        data: scores,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.08)',
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        pointRadius: 5,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label: ctx => {
+              const s = ctx.raw;
+              return ` ${s} — ${fngLabel(s)}`;
+            }
+          }
+        },
+        annotation:{
+          annotations:{
+            z1:{type:'box',yMin:0,yMax:25,backgroundColor:'rgba(248,81,73,0.08)',borderWidth:0},
+            z2:{type:'box',yMin:25,yMax:45,backgroundColor:'rgba(209,134,22,0.06)',borderWidth:0},
+            z3:{type:'box',yMin:45,yMax:55,backgroundColor:'rgba(227,179,65,0.06)',borderWidth:0},
+            z4:{type:'box',yMin:55,yMax:75,backgroundColor:'rgba(63,185,80,0.06)',borderWidth:0},
+            z5:{type:'box',yMin:75,yMax:100,backgroundColor:'rgba(35,209,96,0.08)',borderWidth:0},
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(48,54,61,0.6)'}},
+        y:{min:0,max:100,ticks:{color:'#8b949e',font:{size:11},stepSize:25},grid:{color:'rgba(48,54,61,0.6)'}}
+      }
+    }
+  });
+}
+
+const MARKET_TABS = [
+  {key:'nasdaq', label:'NASDAQ'},
+  {key:'sp500',  label:'S&P500'},
+  {key:'kospi',  label:'KOSPI'},
+  {key:'kosdaq', label:'KOSDAQ'},
+  {key:'usdkrw', label:'USD/KRW'},
+  {key:'wti',    label:'WTI'},
+  {key:'gold',   label:'Gold'},
+];
+
+function buildMarketTabs(daily){
+  const tabsEl = document.getElementById('marketTabs');
+  MARKET_TABS.forEach((t,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i===0?' active':'');
+    btn.textContent = t.label;
+    btn.onclick = ()=>{
+      tabsEl.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      updateMarketChart(daily, t.key, t.label);
+    };
+    tabsEl.appendChild(btn);
+  });
+  updateMarketChart(daily, 'nasdaq', 'NASDAQ');
+}
+
+function updateMarketChart(daily, key, label){
+  const labels = daily.map(d=>fmtDate(d.date));
+  const vals   = daily.map(d=>d.market?.[key] ?? null);
+
+  if(marketChartInst) marketChartInst.destroy();
+  marketChartInst = new Chart(document.getElementById('marketChart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label,
+        data: vals,
+        borderColor:'#58a6ff',
+        backgroundColor:'rgba(88,166,255,0.07)',
+        pointRadius:4,
+        tension:0.3,
+        fill:true,
+        spanGaps:true,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.raw?.toLocaleString()??'N/A'}`}}
+      },
+      scales:{
+        x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(48,54,61,0.6)'}},
+        y:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(48,54,61,0.6)'}}
+      }
+    }
+  });
+}
+
+function buildAccuracyChart(daily){
+  const withResult = daily.filter(d=>d.structured?.forecast_result);
+  const counts = {hit:0, miss:0, partial:0};
+  withResult.forEach(d=>{
+    const r = d.structured.forecast_result;
+    if(r in counts) counts[r]++;
+  });
+  const total = counts.hit+counts.miss+counts.partial;
+
+  new Chart(document.getElementById('accChart'),{
+    type:'doughnut',
+    data:{
+      labels:['적중','미적중','부분적중'],
+      datasets:[{
+        data:[counts.hit,counts.miss,counts.partial],
+        backgroundColor:['rgba(63,185,80,0.8)','rgba(248,81,73,0.8)','rgba(209,134,22,0.8)'],
+        borderColor:['#3fb950','#f85149','#d18616'],
+        borderWidth:1,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const pct = total? Math.round(ctx.raw/total*100):0;
+          return ` ${ctx.label}: ${ctx.raw}회 (${pct}%)`;
+        }}}
+      },
+      cutout:'65%',
+    }
+  });
+
+  const statsEl = document.getElementById('accStats');
+  const items = [
+    {color:'#3fb950',label:`적중 ${counts.hit}회`},
+    {color:'#f85149',label:`미적중 ${counts.miss}회`},
+    {color:'#d18616',label:`부분적중 ${counts.partial}회`},
+  ];
+  statsEl.innerHTML = items.map(i=>
+    `<div class="acc-item"><div class="acc-dot" style="background:${i.color}"></div>${i.label}</div>`
+  ).join('');
+}
+
+function buildTimeline(daily){
+  const el = document.getElementById('timeline');
+  const sorted = [...daily].reverse();
+  sorted.forEach(d=>{
+    const s = d.structured||{};
+    const div = document.createElement('div');
+    div.className='tl-item';
+    const risks = s.key_risks?.slice(0,2).join(', ')||'';
+    div.innerHTML=`
+      <span class="tl-date">${fmtDateFull(d.date)}</span>
+      ${dirBadge(s.market_direction)}
+      ${resultBadge(s.forecast_result)}
+      <span class="tl-risks">${risks}</span>`;
+    div.onclick=()=>selectReport(d.date);
+    el.appendChild(div);
+  });
+}
+
+// ── report viewer ─────────────────────────────────────────────────────────────
+let allDaily = [];
+
+function buildReportList(daily){
+  allDaily = daily;
+  const listEl = document.getElementById('reportList');
+  const sorted = [...daily].reverse();
+  sorted.forEach((d,i)=>{
+    const item = document.createElement('div');
+    item.className='report-list-item'+(i===0?' selected':'');
+    item.dataset.date = d.date;
+    const s = d.structured||{};
+    item.innerHTML=`
+      <div style="font-weight:600">${d.date}</div>
+      <div style="display:flex;gap:4px;margin-top:3px">${dirBadge(s.market_direction)}${resultBadge(s.forecast_result)}</div>`;
+    item.onclick=()=>selectReport(d.date);
+    listEl.appendChild(item);
+  });
+  // show latest
+  if(sorted.length) selectReport(sorted[0].date);
+}
+
+function selectReport(date){
+  // highlight list
+  document.querySelectorAll('.report-list-item').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.date===date);
+  });
+  // highlight timeline
+  document.querySelectorAll('.tl-item').forEach((el,i)=>{
+    const d = [...document.getElementById('timeline').children][i];
+    // match by date text
+    const span = el.querySelector('.tl-date');
+    if(span) el.classList.toggle('selected', span.textContent.trim()===date);
+  });
+
+  const entry = allDaily.find(d=>d.date===date);
+  const contentEl = document.getElementById('reportContent');
+  if(!entry){contentEl.innerHTML='<span class="report-empty">데이터 없음</span>';return;}
+
+  const s = entry.structured||{};
+  let meta = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <strong style="font-size:15px">${date}</strong>
+    ${dirBadge(s.market_direction)}
+    ${resultBadge(s.forecast_result)}`;
+  if(entry.fng_score!=null){
+    meta+=`<span class="badge" style="background:rgba(88,166,255,.15);color:var(--blue)">F&amp;G ${entry.fng_score} · ${fngLabel(entry.fng_score)}</span>`;
+  }
+  if(s.confidence){
+    const cmap={high:'high',medium:'medium',low:'low'};
+    meta+=`<span style="font-size:11px;color:var(--muted)">신뢰도: ${s.confidence}</span>`;
+  }
+  meta+='</div>';
+
+  if(s.key_risks?.length){
+    meta+=`<div style="margin-bottom:12px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">핵심 리스크</span>
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+      ${s.key_risks.map(r=>`<span style="font-size:11px;background:rgba(248,81,73,.15);color:#f85149;padding:2px 8px;border-radius:10px">${r}</span>`).join('')}
+      </div></div>`;
+  }
+  if(s.sector_focus?.length){
+    meta+=`<div style="margin-bottom:16px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">주목 섹터</span>
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+      ${s.sector_focus.map(r=>`<span style="font-size:11px;background:rgba(63,185,80,.15);color:#3fb950;padding:2px 8px;border-radius:10px">${r}</span>`).join('')}
+      </div></div>`;
+  }
+
+  contentEl.innerHTML = meta + renderReport(entry.report);
+}
+
+// ── stats ─────────────────────────────────────────────────────────────────────
+function buildStats(data){
+  const {fng_history, daily} = data;
+  const latest = fng_history[fng_history.length-1];
+  const avg = fng_history.length
+    ? Math.round(fng_history.reduce((s,r)=>s+r.score,0)/fng_history.length)
+    : null;
+
+  const withResult = daily.filter(d=>d.structured?.forecast_result);
+  const hits = withResult.filter(d=>d.structured.forecast_result==='hit').length;
+  const acc = withResult.length ? Math.round(hits/withResult.length*100) : null;
+
+  const statsData = [
+    {label:'최신 F&G', value: latest?.score??'—', hint: latest? fngLabel(latest.score) : '', color: latest? fngColor(latest.score) : null},
+    {label:'평균 F&G', value: avg??'—', hint: `최근 ${fng_history.length}일`, color: avg? fngColor(avg) : null},
+    {label:'누적 일수', value: daily.length, hint: '히스토리 스냅샷'},
+    {label:'예측 적중률', value: acc!=null? acc+'%' : '—', hint: `${hits}/${withResult.length}회`, color: acc? (acc>=60?'var(--green)':acc>=40?'var(--yellow)':'var(--red)') : null},
+  ];
+
+  document.getElementById('stats').innerHTML = statsData.map(s=>
+    `<div class="stat">
+      <div class="label">${s.label}</div>
+      <div class="value" style="${s.color?'color:'+s.color:''}">${s.value}</div>
+      <div class="hint">${s.hint}</div>
+    </div>`
+  ).join('');
+}
+
+// ── main ──────────────────────────────────────────────────────────────────────
+fetch('data.json')
+  .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(data=>{
+    document.getElementById('updated').textContent = `마지막 업데이트: ${data.generated}`;
+    buildStats(data);
+    buildFngChart(data.fng_history);
+    buildMarketTabs(data.daily);
+    buildAccuracyChart(data.daily);
+    buildTimeline(data.daily);
+    buildReportList(data.daily);
+  })
+  .catch(err=>{
+    document.getElementById('updated').textContent = '데이터 로드 실패: ' + err.message;
+  });
+</script>
+</body>
+</html>
