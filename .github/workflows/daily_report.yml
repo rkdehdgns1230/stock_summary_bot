@@ -2,7 +2,7 @@ name: Daily Market Report
 
 on:
   schedule:
-    - cron: '0 23 * * *' # UTC 23시 = 한국 시간(KST) 오전 8시
+    - cron: '0 23 * * 0-4' # UTC 23시(일~목) = KST 오전 8시(월~금), 주말 제외
   workflow_dispatch: # 수동 실행 버튼 추가
 
 jobs:
