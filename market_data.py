@@ -63,47 +63,51 @@ def fetch_us_market():
     return '\n'.join(market_results)
 
 
-def fetch_kospi_futures():
-    """코스피 지수 수집 (yfinance)"""
+def _fetch_index(label: str, ticker: str) -> str:
+    """yfinance로 지수를 수집하는 공통 로직. 실패 시 상세 에러 로그를 출력한다."""
     try:
-        print("[코스피] yfinance로 데이터 요청 중...")
-        data = yf.Ticker("^KS11").history(period="2d")
-        print(f"[코스피] 수신된 데이터 행 수: {len(data)}")
+        print(f"[{label}] yfinance 데이터 요청 중... (ticker={ticker})")
+        # period='2d'는 월요일·연휴 직후 거래일 1개만 반환할 수 있으므로 5d 사용
+        data = yf.Ticker(ticker).history(period="5d")
+        rows = len(data)
+        print(f"[{label}] 수신된 데이터 행 수: {rows}")
 
-        if len(data) < 2:
-            print(f"[코스피] 데이터 부족: {data}")
-            return "코스피: 데이터 부족"
+        if rows == 0:
+            print(f"[ERROR][{label}] 데이터 없음 — ticker '{ticker}' 가 유효하지 않거나 yfinance 응답이 비어 있음")
+            return f"{label}: 데이터 없음"
+
+        if rows < 2:
+            last_date = data.index[-1] if rows >= 1 else "N/A"
+            last_close = data['Close'].iloc[-1] if rows >= 1 else "N/A"
+            print(
+                f"[ERROR][{label}] 거래일 데이터 부족 (rows={rows}) — "
+                f"전일 종가 비교 불가. 마지막 날짜={last_date}, 종가={last_close}"
+            )
+            return f"{label}: 데이터 부족 (거래일 {rows}일치만 수신)"
 
         close = data['Close'].iloc[-1]
         prev_close = data['Close'].iloc[-2]
+        last_date = data.index[-1].strftime('%Y-%m-%d')
+        if close <= 0 or prev_close <= 0:
+            print(f"[ERROR][{label}] 비정상 종가 — close={close}, prev_close={prev_close}, date={last_date}")
+            return f"{label}: 비정상 데이터"
+
         change_pct = ((close - prev_close) / prev_close) * 100
-        result = f"코스피: {close:.2f} ({change_pct:+.2f}%)"
-        print(f"[코스피] 수집 완료: {result}")
+        result = f"{label}: {close:.2f} ({change_pct:+.2f}%)"
+        print(f"[{label}] 수집 완료: {result} (기준일={last_date})")
         return result
     except Exception as e:
-        print(f"[코스피] 예외 발생: {type(e).__name__}: {e}")
-        return "코스피: 정보 가져오기 실패"
+        print(f"[ERROR][{label}] 예외 발생: {type(e).__name__}: {e}")
+        return f"{label}: 수집 실패 ({type(e).__name__})"
+
+
+def fetch_kospi_futures():
+    """코스피 지수 수집 (yfinance)"""
+    return _fetch_index("코스피", "^KS11")
 
 def fetch_kosdaq_index():
     """코스닥 지수 수집 (yfinance)"""
-    try:
-        print("[코스닥] yfinance로 데이터 요청 중...")
-        data = yf.Ticker("^KQ11").history(period="2d")
-        print(f"[코스닥] 수신된 데이터 행 수: {len(data)}")
-
-        if len(data) < 2:
-            print(f"[코스닥] 데이터 부족: {data}")
-            return "코스닥: 데이터 부족"
-
-        close = data['Close'].iloc[-1]
-        prev_close = data['Close'].iloc[-2]
-        change_pct = ((close - prev_close) / prev_close) * 100
-        result = f"코스닥: {close:.2f} ({change_pct:+.2f}%)"
-        print(f"[코스닥] 수집 완료: {result}")
-        return result
-    except Exception as e:
-        print(f"[코스닥] 예외 발생: {type(e).__name__}: {e}")
-        return "코스닥: 정보 가져오기 실패"
+    return _fetch_index("코스닥", "^KQ11")
 
 
 def get_fear_and_greed_score() -> int:
