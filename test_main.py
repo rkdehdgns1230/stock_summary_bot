@@ -12,6 +12,7 @@ def _load_main_module():
     fake_history_writer.save_daily_snapshot = mock.Mock()
     fake_history_writer.upsert_fng_log = mock.Mock()
     fake_history_writer.load_yesterday_snapshot = mock.Mock(return_value=None)
+    fake_history_writer.load_fng_trend = mock.Mock(return_value='')
     fake_history_writer.compute_forecast_record = mock.Mock(
         return_value={'hits': 0, 'partials': 0, 'misses': 0}
     )
@@ -82,6 +83,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'fetch_kosdaq_index', return_value='kosdaq data') as fetch_kosdaq, \
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', return_value='news data') as fetch_news, \
              mock.patch.object(self.main.history_writer, 'load_yesterday_snapshot', return_value=None) as load_yesterday, \
+             mock.patch.object(self.main.history_writer, 'load_fng_trend', return_value='fng trend') as load_fng_trend, \
              mock.patch.object(self.main.ai_report, 'generate_report', return_value='raw report') as generate_report, \
              mock.patch.object(self.main.ai_report, 'extract_structured_metadata', return_value={}) as extract_structured, \
              mock.patch.object(self.main.telegram_sender, 'sanitize_for_telegram_mdv2', return_value='sanitized report'), \
@@ -100,6 +102,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         fetch_kosdaq.assert_called_once_with()
         fetch_news.assert_called_once_with()
         load_yesterday.assert_called_once_with('2026-03-14')
+        load_fng_trend.assert_called_once_with('2026-03-14')
         generate_report.assert_called_once_with(
             '2026년 03월 14일',
             65,
@@ -110,6 +113,7 @@ class SummarizeAndSendTest(unittest.TestCase):
             'kosdaq data',
             'news data',
             vix_data='vix data',
+            fng_trend='fng trend',
             yesterday_report='',
             yesterday_structured={},
         )
@@ -133,6 +137,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         fetch_kosdaq = mock.Mock(return_value='kosdaq data')
         fetch_news = mock.Mock(return_value='news data')
         load_yesterday = mock.Mock(return_value=None)
+        load_fng_trend = mock.Mock(return_value='fng trend')
         generate_report = mock.Mock(return_value='raw report')
         extract_structured = mock.Mock(return_value={})
         compute_forecast_record = mock.Mock(return_value={'hits': 0, 'partials': 0, 'misses': 0})
@@ -150,6 +155,7 @@ class SummarizeAndSendTest(unittest.TestCase):
         call_order.attach_mock(fetch_kosdaq, 'fetch_kosdaq')
         call_order.attach_mock(fetch_news, 'fetch_news')
         call_order.attach_mock(load_yesterday, 'load_yesterday')
+        call_order.attach_mock(load_fng_trend, 'load_fng_trend')
         call_order.attach_mock(generate_report, 'generate_report')
         call_order.attach_mock(extract_structured, 'extract_structured')
         call_order.attach_mock(compute_forecast_record, 'compute_forecast_record')
@@ -168,6 +174,7 @@ class SummarizeAndSendTest(unittest.TestCase):
              mock.patch.object(self.main.market_data, 'fetch_kosdaq_index', fetch_kosdaq), \
              mock.patch.object(self.main.market_data, 'fetch_naver_finance_news', fetch_news), \
              mock.patch.object(self.main.history_writer, 'load_yesterday_snapshot', load_yesterday), \
+             mock.patch.object(self.main.history_writer, 'load_fng_trend', load_fng_trend), \
              mock.patch.object(self.main.ai_report, 'generate_report', generate_report), \
              mock.patch.object(self.main.ai_report, 'extract_structured_metadata', extract_structured), \
              mock.patch.object(self.main.history_writer, 'compute_forecast_record', compute_forecast_record), \
@@ -189,6 +196,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                 mock.call.fetch_kosdaq(),
                 mock.call.fetch_news(),
                 mock.call.load_yesterday('2026-03-14'),
+                mock.call.load_fng_trend('2026-03-14'),
                 mock.call.generate_report(
                     '2026년 03월 14일',
                     42,
@@ -199,6 +207,7 @@ class SummarizeAndSendTest(unittest.TestCase):
                     'kosdaq data',
                     'news data',
                     vix_data='vix data',
+                    fng_trend='fng trend',
                     yesterday_report='',
                     yesterday_structured={},
                 ),

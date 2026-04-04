@@ -39,10 +39,14 @@ def summarize_and_send():
     yesterday_report = yesterday_snapshot.get('report', '') if yesterday_snapshot else ''
     yesterday_structured = yesterday_snapshot.get('structured', {}) if yesterday_snapshot else {}
 
+    fng_trend = history_writer.load_fng_trend(date_str)
+    print("[데이터 수집] F&G 추이:\n", fng_trend or "(데이터 없음)")
+
     raw_report = ai_report.generate_report(
         today, score, fng_stage, us_data, commodities_data,
         kospi_data, kosdaq_data, news_data,
         vix_data=vix_data,
+        fng_trend=fng_trend,
         yesterday_report=yesterday_report,
         yesterday_structured=yesterday_structured,
     )

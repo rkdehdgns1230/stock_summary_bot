@@ -34,7 +34,9 @@ Step 1.  나스닥·S&P500 방향·폭 → 오늘 국장 분위기 선행 파악
 Step 2.  환율·미 10년물 금리 → 외국인 자금 이탈/유입 가능성
 Step 3.  VIX 수준 해석 (20 미만=맑음 / 20~30=흐림 / 30+=폭풍주의보) → 공포 온도 체크
 Step 4.  WTI·금·DXY → 글로벌 리스크온/오프 심리 판단
-Step 5.  공포·탐욕 지수 → 시장 심리 과열·공포 구간 및 반전 가능성
+Step 5.  공포·탐욕 지수 → 현재 구간 해석 + 최근 추이로 방향성(반전/지속) 판단
+         추이 데이터가 제공된 경우 반드시 활용할 것.
+         극단 구간(0~24 또는 76~100)이 3일 이상 지속되면 과매도/과매수 반전 가능성 언급 필수.
 Step 6.  뉴스 → 오늘 국장에 직타할 핵심 이슈 추출
 Step 7.  1~6 종합 → 코스피·코스닥 방향·강도 결론
 Step 8.  누락 데이터 → 나머지 지표로 최대한 추론·보완 (빈칸 금지)
@@ -190,10 +192,12 @@ def build_user_content(today: str,
                        score: int,
                        news_data: str,
                        vix_data: str = '',
+                       fng_trend: str = '',
                        yesterday_report: str = '',
                        yesterday_structured: dict | None = None) -> str:
     """오늘의 시장 데이터와 리포트 작성 요청 메시지 생성"""
     vix_line = f'\n{vix_data}' if vix_data else ''
+    fng_trend_section = f'\n5-1. 최근 F&G 추이 (반전·지속 판단에 활용):\n{fng_trend}' if fng_trend else ''
     yesterday_section = _format_yesterday_section(yesterday_report, yesterday_structured)
 
     return f"""\
@@ -215,7 +219,7 @@ def build_user_content(today: str,
 {kosdaq_data}
 
 5. CNN 공포·탐욕 지수: {fng_stage} ({score}/100)
-   - 0~24: 극도의 공포 / 25~44: 공포 / 45~55: 중립 / 56~75: 탐욕 / 76~100: 극도의 탐욕
+   - 0~24: 극도의 공포 / 25~44: 공포 / 45~55: 중립 / 56~75: 탐욕 / 76~100: 극도의 탐욕{fng_trend_section}
 
 6. 국내 증권 주요 뉴스 (네이버 금융):
 {news_data}
@@ -229,6 +233,7 @@ def generate_report(today: str, score: int, fng_stage: str,
                     us_data: str, commodities_data: str,
                     kospi_data: str, kosdaq_data: str, news_data: str,
                     vix_data: str = '',
+                    fng_trend: str = '',
                     yesterday_report: str = '',
                     yesterday_structured: dict | None = None) -> str:
     """Gemini API를 호출하여 모닝 브리핑 리포트 텍스트 반환 (Google Search Grounding 활성화)"""
@@ -236,6 +241,7 @@ def generate_report(today: str, score: int, fng_stage: str,
     user_content = build_user_content(today, us_data, commodities_data,
                                       kospi_data, kosdaq_data, fng_stage, score, news_data,
                                       vix_data=vix_data,
+                                      fng_trend=fng_trend,
                                       yesterday_report=yesterday_report,
                                       yesterday_structured=yesterday_structured)
     print("[Gemini] 리포트 생성 중 (Google Search Grounding 활성화)...")

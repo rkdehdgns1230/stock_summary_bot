@@ -112,6 +112,47 @@ def format_forecast_record(record: dict) -> str:
     )
 
 
+def load_fng_trend(today_str: str, days: int = 5) -> str:
+    """최근 N일 F&G 추이를 fng_log.csv에서 읽어 요약 문자열로 반환.
+
+    오늘 날짜(today_str) 이하 행 중 최근 days개를 가져온다.
+    데이터 부족 또는 읽기 실패 시 빈 문자열을 반환하여 호출부 흐름을 중단하지 않는다.
+    """
+    log_path = HISTORY_DIR / 'fng_log.csv'
+    if not log_path.exists():
+        print('[히스토리] FNG 로그 없음 — 추이 데이터 생략')
+        return ''
+    try:
+        with open(log_path, encoding='utf-8', newline='') as f:
+            rows = [r for r in csv.DictReader(f) if r['date'] <= today_str]
+
+        recent = rows[-days:]
+        if not recent:
+            print('[히스토리] FNG 추이: 해당 날짜 이전 데이터 없음')
+            return ''
+
+        lines = []
+        for r in recent:
+            suffix = ' ← 오늘' if r['date'] == today_str else ''
+            lines.append(f"  {r['date']}: {r['score']} ({r['stage']}){suffix}")
+
+        if len(recent) >= 2:
+            delta = int(recent[-1]['score']) - int(recent[0]['score'])
+            if delta >= 5:
+                trend = f'상승 추세 (+{delta}p)'
+            elif delta <= -5:
+                trend = f'하락 추세 ({delta}p)'
+            else:
+                trend = f'횡보 ({delta:+}p)'
+            lines.append(f'  → {len(recent)}일 추세: {trend}')
+
+        print(f'[히스토리] FNG 추이 로드 완료 ({len(recent)}일치)')
+        return '\n'.join(lines)
+    except Exception as e:
+        print(f'[ERROR][히스토리] FNG 추이 로드 실패: {type(e).__name__}: {e}')
+        return ''
+
+
 def load_yesterday_snapshot(today_str: str) -> dict | None:
     """어제 날짜의 스냅샷 JSON을 로드하여 반환. 파일이 없으면 None 반환.
 
