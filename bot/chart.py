@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 
-from market_data import get_fng_description
+from .market_data import get_fng_description
 
 
 def _get_korean_font() -> fm.FontProperties:

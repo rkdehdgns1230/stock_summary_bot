@@ -1,6 +1,6 @@
 import re
 import requests
-import config
+from . import config
 
 
 def sanitize_for_telegram_mdv2(text: str) -> str:

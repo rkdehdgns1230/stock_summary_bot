@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-import config
+from bot import config
 
 
 class ParseChatIdsTest(unittest.TestCase):

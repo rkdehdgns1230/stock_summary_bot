@@ -1,6 +1,6 @@
 from google import genai
 from google.genai import types
-import config
+from . import config
 
 client = genai.Client(api_key=config.GEMINI_API_KEY)
 

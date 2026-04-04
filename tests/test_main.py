@@ -8,7 +8,7 @@ from unittest import mock
 
 
 def _load_main_module():
-    fake_history_writer = types.ModuleType('history_writer')
+    fake_history_writer = types.ModuleType('bot.history_writer')
     fake_history_writer.save_daily_snapshot = mock.Mock()
     fake_history_writer.upsert_fng_log = mock.Mock()
     fake_history_writer.load_yesterday_snapshot = mock.Mock(return_value=None)
@@ -18,14 +18,14 @@ def _load_main_module():
     )
     fake_history_writer.format_forecast_record = mock.Mock(return_value='')
 
-    fake_ai_report = types.ModuleType('ai_report')
+    fake_ai_report = types.ModuleType('bot.ai_report')
     fake_ai_report.generate_report = mock.Mock()
     fake_ai_report.extract_structured_metadata = mock.Mock(return_value={})
 
-    fake_chart = types.ModuleType('chart')
+    fake_chart = types.ModuleType('bot.chart')
     fake_chart.generate_fear_greed_gauge_image = mock.Mock()
 
-    fake_market_data = types.ModuleType('market_data')
+    fake_market_data = types.ModuleType('bot.market_data')
     fake_market_data.get_fear_and_greed_score = mock.Mock()
     fake_market_data.get_fng_description = mock.Mock()
     fake_market_data.fetch_us_market = mock.Mock()
@@ -35,7 +35,7 @@ def _load_main_module():
     fake_market_data.fetch_kosdaq_index = mock.Mock()
     fake_market_data.fetch_naver_finance_news = mock.Mock()
 
-    fake_telegram_sender = types.ModuleType('telegram_sender')
+    fake_telegram_sender = types.ModuleType('bot.telegram_sender')
     fake_telegram_sender.sanitize_for_telegram_mdv2 = mock.Mock()
     fake_telegram_sender.send_gauge_image = mock.Mock()
     fake_telegram_sender.send_report = mock.Mock()
@@ -48,11 +48,11 @@ def _load_main_module():
         with mock.patch.dict(
             sys.modules,
             {
-                'ai_report': fake_ai_report,
-                'chart': fake_chart,
-                'history_writer': fake_history_writer,
-                'market_data': fake_market_data,
-                'telegram_sender': fake_telegram_sender,
+                'bot.ai_report': fake_ai_report,
+                'bot.chart': fake_chart,
+                'bot.history_writer': fake_history_writer,
+                'bot.market_data': fake_market_data,
+                'bot.telegram_sender': fake_telegram_sender,
             },
         ):
             if 'main' in sys.modules:

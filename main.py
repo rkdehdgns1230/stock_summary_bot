@@ -1,10 +1,10 @@
 from datetime import datetime, timezone, timedelta
 
-import ai_report
-import chart
-import history_writer
-import market_data
-import telegram_sender
+from bot import ai_report
+from bot import chart
+from bot import history_writer
+from bot import market_data
+from bot import telegram_sender
 
 
 def summarize_and_send():

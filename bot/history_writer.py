@@ -3,7 +3,7 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
-HISTORY_DIR = Path(__file__).parent / 'history'
+HISTORY_DIR = Path(__file__).parent.parent / 'history'
 
 
 def _ensure_dir() -> None:

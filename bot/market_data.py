@@ -1,7 +1,7 @@
 import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
-import config
+from . import config
 
 _BODY_FETCH_COUNT = 5   # 본문을 수집할 상위 기사 수
 _BODY_MAX_CHARS = 300   # 기사 본문 최대 수집 길이 (자)
